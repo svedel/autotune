@@ -1,6 +1,6 @@
-# Basics
+# AutoTune
 
-Natively async API for productionizing data science models, with load balancing and a separate production setup.
+Natively async API for Bayesian optimization-based model tuning, with load balancing and a separate production setup.
 
 ## Tech stack
 * [`fastapi` API framework](https://fastapi.tiangolo.com/) with [`uvicorn` ASGI server](https://www.uvicorn.org/)
