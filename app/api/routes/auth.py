@@ -72,27 +72,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         "token_type": "bearer",
     }
 
-#@router.get("/refresh_token", response_model=Token, status_code=HTTP_201_CREATED)
-#async def get_refresh_token(credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)):
-
-
-@router.get("/get-me")
-async def confirm_user_me(credentials: HTTPBasicCredentials = Depends(deps.bearer_security)):
-    """
-    get the JWT for a user with data from OAuth2 request via HTTP header
-    """
-
-    user = await authenticate(email=credentials.username, password=credentials.password)
-    if not user:
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
-
-    return {
-        "username": user.email,
-        "uuid": user.uuid,
-        "access_token": create_access_token(sub=user.id),
-        "token_type": "bearer",
-    }
-
 
 @router.post("/header-me")
 async def confirm_user_header_me(credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)):
