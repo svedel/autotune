@@ -1,0 +1,19 @@
+# listen on port 80
+[entryPoints]
+    [entryPoints.web]
+        address = ":80"
+
+# traefik dashboard over http
+[api]
+insecure = true
+
+[log]
+level = "DEBUG"
+
+[accessLog]
+
+# containers are not discovered automatically. To manually expose a service, add the "traefik.enable=true" label to the
+# Docker compose file
+[providers]
+    [providers.docker]
+        exposedByDefault = false

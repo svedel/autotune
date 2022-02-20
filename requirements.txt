@@ -1,0 +1,13 @@
+#asyncpg==0.22.0
+asyncpg
+#databases[postgresql]==0.4.1
+fastapi==0.63.0
+#ormar==0.10.18
+ormar
+passlib==1.7.4
+python-dotenv
+python-jose==3.3.0
+pydantic[email]
+python-multipart==0.0.5
+psycopg2-binary==2.8.6
+uvicorn==0.13.4
