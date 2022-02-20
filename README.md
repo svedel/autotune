@@ -15,9 +15,9 @@ with `fastapi`, and is based on [`sqlalchemy`](https://www.sqlalchemy.org/) and
 
 ## Endpoints
 ### Dev API
-The dev API is orchestrated via `docker-compose.yml`. The API is available on `fastapi.localhost:8008` (the swagger 
-entry point on `fastapi.localhost:8008/docs`), the `traefik` dashboard is available on `fastapi.localhost:8008` 
-and the `pgadmin` tool for accessing the postgres database is available on `fastapi.localhost:5050` (user name and 
+The dev API is orchestrated via `docker-compose.yml`. The API is available on `dev.autotune.localhost:8008` (the swagger 
+entry point on `dev.autotune.localhost:8008/docs`), the `traefik` dashboard is available on `dev.autotune.localhost:8081` 
+and the `pgadmin` tool for accessing the postgres database is available on `dev.autotune.localhost:5050` (user name and 
 password available through `.env`-file)
 
 ### Prod API

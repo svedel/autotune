@@ -6,19 +6,15 @@ services:
     command: bash -c 'while !</dev/tcp/db/5432; do sleep 1; done; uvicorn app.main:app --host 0.0.0.0'  # notice initial waiting
     volumes:
       - .:/app
-    #ports:
-    #  - 8008:8000
     expose:
       - 8000
-    #environment:
-    #  - DATABASE_URL=postgresql://fastapi:fastapi@db:5432/fastapi
     env_file:
       - .env
     depends_on:
       - db
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.fastapi.rule=Host(`fastapi.localhost`)"
+      - "traefik.http.routers.fastapi.rule=Host(`dev.autotune.localhost`)"
 
   db:
     image: postgres:13-alpine
@@ -26,19 +22,12 @@ services:
       - postgres_data:/var/lib/postgresql/data/
     expose:
       - 5432
-    #environment:
-    #  - POSTGRES_USER=fastapi
-    #  - POSTGRES_PASSWORD=fastapi
-    #  - POSTGRES_DB=fastapi
     env_file:
       - .env
 
   pgadmin:
     container_name: pgadmin
     image: dpage/pgadmin4
-    #environment:
-    #  - PGADMIN_DEFAULT_EMAIL=pgadmin4@pgadmin.org
-    #  - PGADMIN_DEFAULT_PASSWORD=admin
     env_file:
       - .env
     ports:
