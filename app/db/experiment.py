@@ -123,7 +123,7 @@ AcqFuncTypes = Enum('AcqFuncTypes', dict([(x,x) for x in tmp_cls.ACQ_FUNC_LIST])
 
 # public class for creating an experiment via API
 class PublicCreateExperiment(pydantic.BaseModel):
-    name: str = "Experiment name"
+    name: str = "Experiments name"
     description: Optional[str] = "A description of the experiment is typically a good idea"
     covars: Dict[str, Variable]  # [variable name, content in form of Variable]
     model_type: Optional[ModelTypes] = "SingleTaskGP"
@@ -131,7 +131,7 @@ class PublicCreateExperiment(pydantic.BaseModel):
 
 
 class PublicExperiment(pydantic.BaseModel):
-    name: str = "Experiment name"
+    name: str = "Experiments name"
     description: Optional[str] = "A description of the experiment is typically a good idea"
     covars: Dict[str, VariableOut]  # [variable name, content in form of VariableOut]
     model_type: Optional[ModelTypes] = "SingleTaskGP"
@@ -139,10 +139,11 @@ class PublicExperiment(pydantic.BaseModel):
 
 
 # db class for creating experiment
-class CreateExperiment(ormar.Model):
+class Experiments(ormar.Model):
     class Meta(BaseMeta):
         tablename: str = "experiments"
 
+    # user_uuid: str = ormar.ForeignKey()
     id: int = ormar.Integer(primary_key=True, autoincrement=True)
     exp_uuid: str = ormar.UUID(uuid_format="string", default=uuid.uuid4, index=True)
     name: str = ormar.String(nullable=False, max_length=256)
@@ -153,6 +154,8 @@ class CreateExperiment(ormar.Model):
     covars: Json = ormar.JSON(nullable=False)
     model_type: str = ormar.String(max_length=100, choices=list(ModelTypes))
     acq_func_type: str = ormar.String(max_length=100, choices=list(AcqFuncTypes))
-    #user_uuid: str = ormar.ForeignKey()
-
-    # REMEMBER TO ADD DETAILS ABOUT MODELS ETC
+    best_response: Json = ormar.JSON(nullable=False)  # best response from model
+    covars_best_response: Json = ormar.JSON(nullable=False)  # covariates corresponding to best response from model
+    covars_sampled_iter: int = ormar.Integer()
+    response_sampled_iter: int = ormar.Integer()
+    # model_details  --- sre the model file here (in some form)
