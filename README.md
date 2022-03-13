@@ -20,7 +20,7 @@ entry point on `dev.autotune.localhost:8008/docs`), the `traefik` dashboard is a
 and the `pgadmin` tool for accessing the postgres database is available on `dev.autotune.localhost:5050` (user name and 
 password available through `.env`-file)
 
-### Examples API calls
+### Example API calls
 
 #### `/auth/token` endpoint: Getting the access token
 Example code for a user with username (email) `test@test.com` and password `CHANGEME`
