@@ -21,7 +21,7 @@ class Variable(pydantic.BaseModel):
     guess: Union[StrictFloat, StrictInt, StrictStr]
     min: Optional[Union[StrictFloat, StrictInt]] = None
     max: Optional[Union[StrictFloat, StrictInt]] = None
-    options: Optional[Set] = None
+    options: Optional[Set[str]] = None
 
     # this check is needed to make 'type' available for 'check_guess' validator, but it is not otherwise needed since
     # VarType itself ensures type validation
