@@ -20,6 +20,144 @@ entry point on `dev.autotune.localhost:8008/docs`), the `traefik` dashboard is a
 and the `pgadmin` tool for accessing the postgres database is available on `dev.autotune.localhost:5050` (user name and 
 password available through `.env`-file)
 
+### Examples API calls
+
+#### `/auth/token` endpoint: Getting the access token
+Example code for a user with username (email) `test@test.com` and password `CHANGEME`
+
+In `python`
+```python
+import requests
+
+url = 'http://dev.autotune.localhost:8008/auth/token'
+data = {'username': 'test@test.com', 'password': 'CHANGEME'}
+
+r = requests.post(url, data = data)
+```
+where the returned token can be grabbed via `r.json()["access_token"]`.
+
+Using `curl` on the command line
+```shell
+svedel@svedel-T430s$ curl -X POST http://dev.autotune.localhost:8008/auth/token -H 'accept: application/json' -d 'username=test%40test.com&password=CHANGEME'
+```
+
+#### `experiments/new` endpoint: creating a new experiment
+
+For auth purposes this endpoints requires a JWT token to be submitted in the header. In the following it is assumed the 
+token has already been obtained; section "`/auth/token` endpoint: Getting the access token" above explains how to 
+retrieve the token.
+
+Here we explain how to set up a new experiment with name `some_name` and description `some_description`. In addition, 
+the variables for the experiment need to be specified
+* Variable `v1` is an _integer_ in the range [0; 5] which we guess should take value 2
+* Variable `color` is a _categorical_ variable with options `red`, `green` and `blue` which we guess should take value `red`
+* Variable `weight` is a _continuous_ variable in the range [-3; 200] which we start at 6.6
+* The model should be of type `SingleTaskGP` (default), and the acquisition function of type `ExpectedImprovement`
+
+The covariates for the model (the variables) are defined via the `covars` object. Notice that options for categorical
+variables (`color`) should be entered as a list in the json
+```json
+"covars": {
+    "v1": {
+      "vtype": "int",
+      "guess": 2,
+      "min": 0,
+      "max": 5
+    },
+    "color": {
+      "vtype": "cat",
+      "guess": "red",
+      "options": [
+        "red", "green", "blue"
+      ]
+    },
+    "weight": {
+      "vtype": "cont",
+      "guess": 6.6,
+      "min": -3.0,
+      "max": 200.0
+    },
+  }    
+```
+**Note I** that JSON format does not accept commas after last entries. 
+
+**Note II** that the outcome options for categorical variables (`options` for the variable `color` in the example above) 
+can only be processed by `FastAPI` if provided between square brackets `[]` instead of curly brackets `{}` (because this
+field is defined as a set in `FastAPI`).
+
+The full API call in `python` will look like this
+```python
+import requests
+
+url = "http://dev.autotune.localhost:8008/experiment/new"  # use dev endpoint for API call
+headersAuth = {"Authorization": "Bearer <TOKEN>"}  # example token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiZXhwIjoxNjQ3ODQzMzAxLCJpYXQiOjE2NDcxNTIxMDEsInN1YiI6IjEifQ.h9r3zJ1RYZt7PoAvPpwne-MPIfKDNPsMq9nMmoRfiA8
+
+json_data = {
+  "name": "some_name",
+  "description": "some_description",
+  "covars": {
+    "v1": {
+      "vtype": "int",
+      "guess": 2,
+      "min": 0,
+      "max": 5
+    },
+    "color": {
+      "vtype": "cat",
+      "guess": "red",
+      "options": [
+        "red", "green", "blue"
+      ]
+    },
+    "weight": {
+      "vtype": "cont",
+      "guess": 6.6,
+      "min": -3.0,
+      "max": 200.0
+    }
+  },
+  "model_type": "SingleTaskGP",
+  "acq_func": "ExpectedImprovement"
+}
+    
+# post to API
+r = requests.post(url, headers=headersAuth, json=json_data)
+``` 
+The API response will be available as `r.json()`. Again, notice how `options` for the `color`-variable are provided in
+square brackets `[]` instead of curly brackets `{}`.
+
+Using `curl` on the command line
+```shell
+svedel@svedel-T430s$ curl -X 'POST'   'http://dev.autotune.localhost:8008/experiment/new'   -H 'accept: application/json'   -H 'Content-Type: application/json'   -d '{
+>   "name": "some_name",
+>   "description": "some_description",
+>   "covars": {
+>     "v1": {
+>       "vtype": "int",
+>       "guess": 2,
+>       "min": 0,
+>       "max": 5
+>     },
+>     "color": {
+>       "vtype": "cat",
+>       "guess": "red",
+>       "options": [
+>         "red", "green", "blue"
+>       ]
+>     },
+>     "weight": {
+>       "vtype": "cont",
+>       "guess": 6.6,
+>       "min": -3.0,
+>       "max": 200.0
+>     }
+>   },
+>   "model_type": "SingleTaskGP",
+>   "acq_func": "ExpectedImprovement"
+> }' -H "Authorization: Bearer <TOKEN>"
+
+```
+
 ### Prod API
 See details under "Let's Encrypt" in tutorial from testdriven.io references below
 
