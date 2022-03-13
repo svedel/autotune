@@ -23,6 +23,7 @@ class User(ormar.Model):
 
 # create pydantic model for User without password
 SimpleUser = User.get_pydantic(include={"email"})
+
 class CreateUser(SimpleUser):
     password: str
 

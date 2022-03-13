@@ -2,6 +2,8 @@ import sqlalchemy
 
 from app.db.user import User, CreateUser, PublicUser
 from app.db.item import Item
+from app.db.experiment import PublicCreateExperiment, Variable, VarType, Experiments, ModelTypes, \
+    AcqFuncTypes, PublicExperiment, VariableOut
 from app.db.core import metadata, database
 from app.db.token import Token, TokenData
 

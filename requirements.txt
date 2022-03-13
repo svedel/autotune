@@ -2,6 +2,7 @@
 asyncpg
 #databases[postgresql]==0.4.1
 fastapi==0.63.0
+greattunes
 #ormar==0.10.18
 ormar
 passlib==1.7.4
@@ -10,4 +11,5 @@ python-jose==3.3.0
 pydantic[email]
 python-multipart==0.0.5
 psycopg2-binary==2.8.6
+ujson==5.1.0
 uvicorn==0.13.4

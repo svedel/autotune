@@ -15,8 +15,12 @@ tags_metadata = [
         "description": "Operations for items.",
     },
     {
-        "name": "Auth",
+        "name": "Authentication and authorization",
         "description": "Operations for signing up and user auth (user creation (sign-up) and sign-in).",
+    },
+    {
+        "name": "Experiments",
+        "description": "Creating and managing experiments.",
     }
 ]
 
