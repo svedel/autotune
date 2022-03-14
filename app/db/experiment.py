@@ -123,7 +123,7 @@ AcqFuncTypes = Enum('AcqFuncTypes', dict([(x,x) for x in tmp_cls.ACQ_FUNC_LIST])
 
 # public class for creating an experiment via API
 class PublicCreateExperiment(pydantic.BaseModel):
-    name: str = "Experiments name"
+    name: str = "Experiment name"
     description: Optional[str] = "A description of the experiment is typically a good idea"
     covars: Dict[str, Variable]  # [variable name, content in form of Variable]
     model_type: Optional[ModelTypes] = "SingleTaskGP"
@@ -131,7 +131,7 @@ class PublicCreateExperiment(pydantic.BaseModel):
 
 
 class PublicExperiment(pydantic.BaseModel):
-    name: str = "Experiments name"
+    name: str = "Experiment name"
     description: Optional[str] = "A description of the experiment is typically a good idea"
     covars: Dict[str, VariableOut]  # [variable name, content in form of VariableOut]
     model_type: Optional[ModelTypes] = "SingleTaskGP"
@@ -139,11 +139,11 @@ class PublicExperiment(pydantic.BaseModel):
 
 
 # db class for creating experiment
-class Experiments(ormar.Model):
+class Experiment(ormar.Model):
     class Meta(BaseMeta):
         tablename: str = "experiments"
 
-    # user_uuid: str = ormar.ForeignKey()
+    user: User = ormar.ForeignKey(User, nullable=False)
     id: int = ormar.Integer(primary_key=True, autoincrement=True)
     exp_uuid: str = ormar.UUID(uuid_format="string", default=uuid.uuid4, index=True)
     name: str = ormar.String(nullable=False, max_length=256)
@@ -158,4 +158,4 @@ class Experiments(ormar.Model):
     covars_best_response: Json = ormar.JSON(nullable=False)  # covariates corresponding to best response from model
     covars_sampled_iter: int = ormar.Integer()
     response_sampled_iter: int = ormar.Integer()
-    # model_details  --- sre the model file here (in some form)
+    # model_details  --- save the model file here (in some form e.g. pickle and retrieve it)
