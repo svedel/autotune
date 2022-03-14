@@ -19,7 +19,7 @@ tags_metadata = [
         "description": "Operations for signing up and user auth (user creation (sign-up) and sign-in).",
     },
     {
-        "name": "Experiments",
+        "name": "Experiment",
         "description": "Creating and managing experiments.",
     }
 ]
