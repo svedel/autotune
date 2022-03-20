@@ -143,19 +143,19 @@ class Experiment(ormar.Model):
     class Meta(BaseMeta):
         tablename: str = "experiments"
 
-    user: User = ormar.ForeignKey(User, nullable=False)
     id: int = ormar.Integer(primary_key=True, autoincrement=True)
     exp_uuid: str = ormar.UUID(uuid_format="string", default=uuid.uuid4, index=True)
     name: str = ormar.String(nullable=False, max_length=256)
-    description: Optional[str] = ormar.String(nullable=True, max_length=2000)
+    description: Optional[str] = ormar.Text(nullable=True)
     time_created: datetime = ormar.DateTime(default=datetime.utcnow, nullable=False)
     time_updated: datetime = ormar.DateTime(default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     active: bool = ormar.Boolean(default=True, nullable=False)
     covars: Json = ormar.JSON(nullable=False)
     model_type: str = ormar.String(max_length=100, choices=list(ModelTypes))
     acq_func_type: str = ormar.String(max_length=100, choices=list(AcqFuncTypes))
-    best_response: Json = ormar.JSON(nullable=False)  # best response from model
-    covars_best_response: Json = ormar.JSON(nullable=False)  # covariates corresponding to best response from model
+    best_response: Json = ormar.JSON(nullable=True)  # best response from model
+    covars_best_response: Json = ormar.JSON(nullable=True)  # covariates corresponding to best response from model
     covars_sampled_iter: int = ormar.Integer()
     response_sampled_iter: int = ormar.Integer()
-    # model_details  --- save the model file here (in some form e.g. pickle and retrieve it)
+    user: User = ormar.ForeignKey(User, nullable=False)
+    model_object_binary: str = ormar.LargeBinary(max_length=1000000, nullable=True) #ormar.Text(nullable=True)  # model file dumped to str
