@@ -215,10 +215,27 @@ available on port 5050 (`http://dev.autotune.localhost:5050/`). Login credential
 * Password: "admin"
 
 Once logged in, the tool must be connected to the database. In the following we will use the development application 
-database as example; more info also available in [this tutorial](https://ahmed-nafies.medium.com/fastapi-with-sqlalchemy-postgresql-and-alembic-and-of-course-docker-f2b7411ee396). Click the "Add New Server" link on the landing page, or right-click "Servers" in the tree on the 
+database as example; more info also available in [this tutorial](https://ahmed-nafies.medium.com/fastapi-with-sqlalchemy-postgresql-and-alembic-and-of-course-docker-f2b7411ee396).  
+
+Click the "Add New Server" link on the landing page, or right-click "Servers" in the tree on the 
 left and select "Server" under "Create".
 
 ![alt text](docs/figs/pgadmin_create.png)
+
+An entry box opens where you must first give the connection a name under the "General" tab. For this you can choose 
+anything you want.
+
+![alt text](docs/figs/db_connect.png)
+
+Under the "Connection" tab you must add the details of the database containers. We are setting up the connection between 
+two Docker containers, so we must use the Docker container service name and not the general address when connecting. In 
+other words, the "Host name/address" should be set to the name of the postgres service in our Docker network; this name 
+is `db`.
+
+The "Maintenance database" name is the name of the database we want `pgadmin4` to connect to, i.e. the application 
+database. For the development setup that name is `fastapi`. "Username" and "Password" are also to the same development
+database, and the value for both are `fastapi` (these parameters are defined in `.env`).
+ 
 
 ## References
 * [Christopher GS: blog on `fastapi` app building](https://christophergs.com/tutorials/ultimate-fastapi-tutorial-pt-10-auth-jwt/)
