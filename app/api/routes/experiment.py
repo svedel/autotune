@@ -39,8 +39,7 @@ async def create_new_experiment(
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        # handle parsing etc via classes and methods in helpers.py
-        # cast the experiment for Experiment class in db
+        # parse the provided experiment and cast for Experiment class in db
         exp = ExperimentOperations.parse_new_experiment(new_exp=new_exp, user=user)
 
         await exp.save()
