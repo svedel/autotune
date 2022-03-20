@@ -3,12 +3,11 @@ from starlette.status import HTTP_201_CREATED
 from jose import JWTError, jwt, ExpiredSignatureError
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import ValidationError
-from typing import List
-from uuid import UUID
 
-from app.db import PublicCreateExperiment, PublicExperiment, User
+from app.db import PublicCreateExperiment, PublicExperiment, User, Experiment
 from app.core.auth import bearer_scheme
 from app.core.config import settings
+from app.api.helpers import ExperimentOperations
 
 
 router = APIRouter()
@@ -24,6 +23,8 @@ async def create_new_experiment(
     this endpoint.
 
     using PublicExperiment data model to provide exp details
+
+    TODO: Return response via appropriate class that also takes user into consideration
     '''
 
     try:
@@ -37,6 +38,12 @@ async def create_new_experiment(
             raise HTTPException(status_code=401, detail="Invalid token")
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
+
+        # handle parsing etc via classes and methods in helpers.py
+        # cast the experiment for Experiment class in db
+        exp = ExperimentOperations.parse_new_experiment(new_exp=new_exp, user=user)
+
+        await exp.save()
 
         return new_exp
 
