@@ -205,6 +205,21 @@ svedel@svedel-T430s:~/fastapi_postgres_docker_check$ curl -X GET http://fastapi.
 
 ### HTTP validation 
 
+## Support tools
+
+### Database management
+
+An instance of the postgres admin tool `pgAdmin4` is set up for this application. For the development system it is 
+available on port 5050 (`http://dev.autotune.localhost:5050/`). Login credentials are
+* Username: "pgadmin4@pgadmin.org"
+* Password: "admin"
+
+Once logged in, the tool must be connected to the database. In the following we will use the development application 
+database as example; more info also available in [this tutorial](https://ahmed-nafies.medium.com/fastapi-with-sqlalchemy-postgresql-and-alembic-and-of-course-docker-f2b7411ee396). Click the "Add New Server" link on the landing page, or right-click "Servers" in the tree on the 
+left and select "Server" under "Create".
+
+![alt text](docs/figs/pgadmin_create.png)
+
 ## References
 * [Christopher GS: blog on `fastapi` app building](https://christophergs.com/tutorials/ultimate-fastapi-tutorial-pt-10-auth-jwt/)
 * [testdriven.io: Dockerizing FastAPI with Postgres, Uvicorn and Traefik](https://testdriven.io/blog/fastapi-docker-traefik/#postgres)
