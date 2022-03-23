@@ -1,7 +1,8 @@
+import asyncio
 import json
 import dill as dl
 from greattunes import TuneSession
-from app.db import Experiment, User
+from app.db import Experiment, User, PublicExperiment
 
 
 # custom json encoder for sets
@@ -159,3 +160,37 @@ class ExperimentOperations:
                          )
 
         return exp
+
+
+    @staticmethod
+    async def public_experiment(exp_uuid):
+        '''
+        extract entry in 'experiments' table based on exp_uuid, and returns in format PublicExperiment
+        :param exp_uuid:
+        :return:
+        '''
+
+        # identify the right experiment
+        exp = await Experiment.objects.get(Experiment.exp_uuid == exp_uuid)
+
+        # identify the associated user (a foreign key relation) via the primary key
+        user = await User.objects.get(User.id == exp.user.pk)
+
+        public_exp = PublicExperiment(
+            exp_uuid=exp.exp_uuid,
+            name=exp.name,
+            description=exp.description,
+            time_created=exp.time_created,
+            time_updated=exp.time_updated,
+            covars=exp.covars,
+            model_type=exp.model_type,
+            acq_func_type=exp.acq_func_type,
+            active=exp.active,
+            best_response=exp.best_response,
+            covars_best_response=exp.covars_best_response,
+            covars_sampled_iter=exp.covars_sampled_iter,
+            response_sampled_iter=exp.response_sampled_iter,
+            user_uuid=user.uuid
+        )
+
+        return public_exp
