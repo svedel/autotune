@@ -2,13 +2,14 @@ from datetime import datetime
 import ormar
 import pydantic
 from enum import Enum
-from pydantic import Json, validator, root_validator, StrictInt, StrictFloat, StrictStr
+from pydantic import Json, validator, root_validator, StrictInt, StrictFloat, StrictStr, UUID4
 from typing import Set, Dict, Union, Optional
 import uuid
 from greattunes import TuneSession
 
 from app.db.core import BaseMeta
 from app.db.user import User
+
 
 class VarType(Enum):
     int = "int"
@@ -130,16 +131,11 @@ class PublicCreateExperiment(pydantic.BaseModel):
     acq_func: Optional[AcqFuncTypes] = "ExpectedImprovement"
 
 
-class PublicExperiment(pydantic.BaseModel):
-    name: str = "Experiment name"
-    description: Optional[str] = "A description of the experiment is typically a good idea"
-    covars: Dict[str, VariableOut]  # [variable name, content in form of VariableOut]
-    model_type: Optional[ModelTypes] = "SingleTaskGP"
-    acq_func: Optional[AcqFuncTypes] = "ExpectedImprovement"
-
-
 # db class for creating experiment
 class Experiment(ormar.Model):
+    '''
+    ormar class (data model and database model) for experiments
+    '''
     class Meta(BaseMeta):
         tablename: str = "experiments"
 
@@ -159,3 +155,23 @@ class Experiment(ormar.Model):
     response_sampled_iter: int = ormar.Integer()
     user: User = ormar.ForeignKey(User, nullable=False)
     model_object_binary: str = ormar.LargeBinary(max_length=1000000, nullable=True) #ormar.Text(nullable=True)  # model file dumped to str
+
+
+class PublicExperiment(pydantic.BaseModel):
+    '''
+    data model for returning experiments (data from 'experiment' table)
+    '''
+    exp_uuid: UUID4
+    name: str
+    description: Optional[str]
+    covars: Dict
+    model_type: Optional[str]
+    acq_func: Optional[str]
+    time_created: datetime
+    time_updated: datetime
+    active: bool
+    best_response: Json
+    covars_best_response: Json
+    covars_sampled_iter: int
+    response_sampled_iter: int
+    user_uuid: UUID4
