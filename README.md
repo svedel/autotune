@@ -236,6 +236,9 @@ The "Maintenance database" name is the name of the database we want `pgadmin4` t
 database. For the development setup that name is `fastapi`. "Username" and "Password" are also to the same development
 database, and the value for both are `fastapi` (these parameters are defined in `.env`).
  
+Finally, the tables can be accessed using the tree to the left under Servers > autotune.dev > fastapi > schemas > tables
+
+[!alt text](docs/figs/find_tables.png)
 
 ## References
 * [Christopher GS: blog on `fastapi` app building](https://christophergs.com/tutorials/ultimate-fastapi-tutorial-pt-10-auth-jwt/)
