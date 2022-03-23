@@ -238,7 +238,7 @@ database, and the value for both are `fastapi` (these parameters are defined in 
  
 Finally, the tables can be accessed using the tree to the left under Servers > autotune.dev > fastapi > schemas > tables
 
-[!alt text](docs/figs/find_tables.png)
+![alt text](docs/figs/find_tables.png)
 
 ## References
 * [Christopher GS: blog on `fastapi` app building](https://christophergs.com/tutorials/ultimate-fastapi-tutorial-pt-10-auth-jwt/)
