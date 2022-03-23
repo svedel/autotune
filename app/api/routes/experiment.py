@@ -23,8 +23,6 @@ async def create_new_experiment(
     this endpoint.
 
     using PublicExperiment data model to provide exp details
-
-    TODO: Return response via appropriate class that also takes user into consideration
     '''
 
     try:
@@ -44,7 +42,10 @@ async def create_new_experiment(
 
         await exp.save()
 
-        return new_exp
+        # retrieve stored result to return
+        new_exp_public = await ExperimentOperations.public_experiment(exp_uuid=exp.exp_uuid)
+
+        return new_exp_public
 
     except (JWTError, ValidationError):
         raise HTTPException(status_code=403, detail="Could not validate credentials")
