@@ -3,12 +3,11 @@ from starlette.status import HTTP_201_CREATED
 from jose import JWTError, jwt, ExpiredSignatureError
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import ValidationError
-from typing import List
-from uuid import UUID
 
-from app.db import PublicCreateExperiment, PublicExperiment, User
+from app.db import PublicCreateExperiment, PublicExperiment, User, Experiment
 from app.core.auth import bearer_scheme
 from app.core.config import settings
+from app.api.helpers import ExperimentOperations
 
 
 router = APIRouter()
@@ -38,7 +37,15 @@ async def create_new_experiment(
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        return new_exp
+        # parse the provided experiment and cast for Experiment class in db
+        exp = ExperimentOperations.parse_new_experiment(new_exp=new_exp, user=user)
+
+        await exp.save()
+
+        # retrieve stored result to return
+        new_exp_public = await ExperimentOperations.public_experiment(exp_uuid=exp.exp_uuid)
+
+        return new_exp_public
 
     except (JWTError, ValidationError):
         raise HTTPException(status_code=403, detail="Could not validate credentials")

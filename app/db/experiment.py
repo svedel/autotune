@@ -2,13 +2,14 @@ from datetime import datetime
 import ormar
 import pydantic
 from enum import Enum
-from pydantic import Json, validator, root_validator, StrictInt, StrictFloat, StrictStr
+from pydantic import Json, validator, root_validator, StrictInt, StrictFloat, StrictStr, UUID4
 from typing import Set, Dict, Union, Optional
 import uuid
 from greattunes import TuneSession
 
 from app.db.core import BaseMeta
 from app.db.user import User
+
 
 class VarType(Enum):
     int = "int"
@@ -123,39 +124,54 @@ AcqFuncTypes = Enum('AcqFuncTypes', dict([(x,x) for x in tmp_cls.ACQ_FUNC_LIST])
 
 # public class for creating an experiment via API
 class PublicCreateExperiment(pydantic.BaseModel):
-    name: str = "Experiments name"
+    name: str = "Experiment name"
     description: Optional[str] = "A description of the experiment is typically a good idea"
     covars: Dict[str, Variable]  # [variable name, content in form of Variable]
     model_type: Optional[ModelTypes] = "SingleTaskGP"
     acq_func: Optional[AcqFuncTypes] = "ExpectedImprovement"
 
 
-class PublicExperiment(pydantic.BaseModel):
-    name: str = "Experiments name"
-    description: Optional[str] = "A description of the experiment is typically a good idea"
-    covars: Dict[str, VariableOut]  # [variable name, content in form of VariableOut]
-    model_type: Optional[ModelTypes] = "SingleTaskGP"
-    acq_func: Optional[AcqFuncTypes] = "ExpectedImprovement"
-
-
 # db class for creating experiment
-class Experiments(ormar.Model):
+class Experiment(ormar.Model):
+    '''
+    ormar class (data model and database model) for experiments
+    '''
     class Meta(BaseMeta):
         tablename: str = "experiments"
 
-    # user_uuid: str = ormar.ForeignKey()
     id: int = ormar.Integer(primary_key=True, autoincrement=True)
     exp_uuid: str = ormar.UUID(uuid_format="string", default=uuid.uuid4, index=True)
     name: str = ormar.String(nullable=False, max_length=256)
-    description: Optional[str] = ormar.String(nullable=True, max_length=2000)
+    description: Optional[str] = ormar.Text(nullable=True)
     time_created: datetime = ormar.DateTime(default=datetime.utcnow, nullable=False)
     time_updated: datetime = ormar.DateTime(default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     active: bool = ormar.Boolean(default=True, nullable=False)
     covars: Json = ormar.JSON(nullable=False)
     model_type: str = ormar.String(max_length=100, choices=list(ModelTypes))
     acq_func_type: str = ormar.String(max_length=100, choices=list(AcqFuncTypes))
-    best_response: Json = ormar.JSON(nullable=False)  # best response from model
-    covars_best_response: Json = ormar.JSON(nullable=False)  # covariates corresponding to best response from model
+    best_response: Json = ormar.JSON(nullable=True)  # best response from model
+    covars_best_response: Json = ormar.JSON(nullable=True)  # covariates corresponding to best response from model
     covars_sampled_iter: int = ormar.Integer()
     response_sampled_iter: int = ormar.Integer()
-    # model_details  --- sre the model file here (in some form)
+    user: User = ormar.ForeignKey(User, nullable=False)
+    model_object_binary: str = ormar.LargeBinary(max_length=1000000, nullable=True) #ormar.Text(nullable=True)  # model file dumped to str
+
+
+class PublicExperiment(pydantic.BaseModel):
+    '''
+    data model for returning experiments (data from 'experiment' table)
+    '''
+    exp_uuid: UUID4
+    name: str
+    description: Optional[str]
+    covars: Dict
+    model_type: Optional[str]
+    acq_func: Optional[str]
+    time_created: datetime
+    time_updated: datetime
+    active: bool
+    best_response: Json
+    covars_best_response: Json
+    covars_sampled_iter: int
+    response_sampled_iter: int
+    user_uuid: UUID4
