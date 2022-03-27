@@ -165,7 +165,7 @@ token has already been obtained; section "`/auth/token` endpoint: Getting the ac
 retrieve the token.
 
 Since this is a GET action, the endpoint is easier to call. In `python` the following will do the job (the experiment 
-uuid `exp_uuid` can be obtained from the `experiment/new` endpoint)
+uuid `<EXP_UUID>` can be obtained from the `experiment/new` endpoint)
 ```python
 import requests
 
