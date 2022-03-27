@@ -175,3 +175,13 @@ class PublicExperiment(pydantic.BaseModel):
     covars_sampled_iter: int
     response_sampled_iter: int
     user_uuid: UUID4
+
+
+class PublicExperimentAsk(pydantic.BaseModel):
+    '''
+    data model for returning output from TuneSession '.ask'-method which provides the next datapoint to sample
+    '''
+
+    exp_uuid: UUID4
+    time_updated: datetime
+    covars_next_exp: str  # cannot make pydantic Json type accept .to_json()-output from pandas, so using str format
