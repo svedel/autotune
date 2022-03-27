@@ -41,7 +41,7 @@ Using `curl` on the command line
 svedel@svedel-T430s$ curl -X POST http://dev.autotune.localhost:8008/auth/token -H 'accept: application/json' -d 'username=test%40test.com&password=CHANGEME'
 ```
 
-#### `experiments/new` endpoint: creating a new experiment
+#### POST action: `experiments/new` endpoint: creating a new experiment
 
 For auth purposes this endpoints requires a JWT token to be submitted in the header. In the following it is assumed the 
 token has already been obtained; section "`/auth/token` endpoint: Getting the access token" above explains how to 
@@ -157,6 +157,28 @@ svedel@svedel-T430s$ curl -X 'POST'   'http://dev.autotune.localhost:8008/experi
 > }' -H "Authorization: Bearer <TOKEN>"
 
 ```
+
+#### GET action: `experiment/ask/{exp_uuid}` endpoint: get covariates for next experiment
+
+For auth purposes this endpoints requires a JWT token to be submitted in the header. In the following it is assumed the 
+token has already been obtained; section "`/auth/token` endpoint: Getting the access token" above explains how to 
+retrieve the token.
+
+Since this is a GET action, the endpoint is easier to call. In `python` the following will do the job (the experiment 
+uuid `<EXP_UUID>` can be obtained from the `experiment/new` endpoint)
+```python
+import requests
+
+url = "http://dev.autotune.localhost:8008/experiment/new/<EXP_UUID>"
+headersAuth = {"Authorization": "Bearer <TOKEN>"}  # example token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiZXhwIjoxNjQ3ODQzMzAxLCJpYXQiOjE2NDcxNTIxMDEsInN1YiI6IjEifQ.h9r3zJ1RYZt7PoAvPpwne-MPIfKDNPsMq9nMmoRfiA8
+
+r = requests.get(url, headers=headersAuth)
+r.json()
+
+# will produce an output like the following if an experiment like the one in the example above is asked
+# {'exp_uuid': '6d11cdf0-8b13-4140-839d-1f924653589b', 'time_updated': '2022-03-27T12:40:55.253019', 'covars_next_exp': '[{"v1":2,"color":"red","weight":6.6}]'}
+```
+
 
 ### Prod API
 See details under "Let's Encrypt" in tutorial from testdriven.io references below

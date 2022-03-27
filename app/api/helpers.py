@@ -1,8 +1,10 @@
 import asyncio
 import json
 import dill as dl
+from datetime import datetime
 from greattunes import TuneSession
-from app.db import Experiment, User, PublicExperiment
+from greattunes.data_format_mappings import tensor2pretty_covariate
+from app.db import Experiment, User, PublicExperiment, PublicExperimentAsk
 
 
 # custom json encoder for sets
@@ -194,3 +196,61 @@ class ExperimentOperations:
         )
 
         return public_exp
+
+
+    @staticmethod
+    async def ask_next_datapoint(exp):
+        '''
+        retrieves the next datapoint based on TuneSession 'ask'-method. Next datapoint will be determined based off
+        previous data points, the acquisition function and the model type
+        :param exp (Experiment entry): stored experiment
+        :return:
+        '''
+
+        # load model
+        model_object = ParseModel.load_model_object_binary_from_string(exp.model_object_binary)
+
+        # find next datapoint, will be available as last entry in model_object.proposed_X (in torch double tensor
+        # format)
+        model_object.ask()
+
+        # display next datapoint as json
+        proposed_covars_json = ExperimentOperations._proposed_covars_json_for_API_return(model_object)
+
+        # update model binary in db
+        exp.model_object_binary = ParseModel.dump_model_object_binary_to_string(model_object)
+        exp.time_updated = datetime.utcnow()
+        await exp.update(_columns=["model_object_binary", "time_updated"])  # updates fields in database
+        await exp.load()  # loads the latest stored data (in order to get the timestamp)
+
+        # define new exp data model class just for new covariates, cast data into that class and return it to the route
+        # to be returned via API
+        ask_exp = PublicExperimentAsk(
+            exp_uuid=exp.exp_uuid,
+            time_updated=exp.time_updated,
+            covars_next_exp=proposed_covars_json
+        )
+
+        return ask_exp
+
+
+    @staticmethod
+    def _proposed_covars_json_for_API_return(model_object):
+        '''
+        display output of .ask-method for return via API
+        :param model_object: instantiated TuneSession object where .ask method has just been run (covariates for next experiment have been found)
+        :return json (json): proposed covariates for next experiment, returned in json format
+        '''
+
+        # number of covariates
+        num_covars = model_object.proposed_X[-1].size()[0]
+
+        # convert to pandas
+        proposed_df = tensor2pretty_covariate(
+            train_X_sample=model_object.proposed_X[-1].reshape(1, num_covars),
+            covar_details=model_object.covar_details
+        )
+
+        return proposed_df.to_json(orient="records")
+
+

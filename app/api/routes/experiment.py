@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Security, HTTPException
-from starlette.status import HTTP_201_CREATED
+from starlette.status import HTTP_201_CREATED, HTTP_200_OK
 from jose import JWTError, jwt, ExpiredSignatureError
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import ValidationError
+from uuid import UUID
 
-from app.db import PublicCreateExperiment, PublicExperiment, User, Experiment
+from app.db import PublicCreateExperiment, PublicExperiment, User, Experiment, PublicExperimentAsk
 from app.core.auth import bearer_scheme
 from app.core.config import settings
 from app.api.helpers import ExperimentOperations
@@ -51,3 +52,50 @@ async def create_new_experiment(
         raise HTTPException(status_code=403, detail="Could not validate credentials")
     except ExpiredSignatureError:
         raise HTTPException(status_code=403, detail="Token expired")
+
+
+@router.get("/ask/{exp_uuid}", response_model=PublicExperimentAsk, status_code=HTTP_200_OK)
+async def experiment_ask(exp_uuid: UUID, credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)):
+    '''
+    endpoint to retrieve the covariates for which the algorithm believes the response will generate the most new
+    knowledge wrt finding the optimum
+    :param exp_uuid (UUID): unique identifier for experiment
+    :param credentials:
+    :return:
+    '''
+
+    try:
+        # decode
+        payload = jwt.decode(credentials.credentials, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
+
+        # check user
+        user = await User.objects.filter(id=int(payload.get("sub"))).first()
+        if not payload["type"] == "access_token":
+            raise HTTPException(status_code=401, detail="Invalid token")
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # check user has access to experiment
+        exp = await Experiment.objects.filter(exp_uuid=exp_uuid).first()
+        await exp.user.load()  # load the user for this exp from the db
+        if not exp:
+            raise HTTPException(status_code=404, detail="Experiment not found")
+        if not exp.user.uuid == user.uuid:
+            raise HTTPException(status_code=403, detail="Forbidden. User does not have access to this experiment")
+
+        # determine covars for next experiment via TuneSession's ask-method, update experiment and return
+        next_covars = await ExperimentOperations.ask_next_datapoint(exp)
+
+        return next_covars
+
+    except (JWTError, ValidationError):
+        raise HTTPException(status_code=403, detail="Could not validate credentials")
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=403, detail="Token expired")
+
+
+#@router.post("/tell/{exp_uuid}", response_model=PublicExperimentAsk, status_code=HTTP_200_OK)
+# ednpoint to report results
+
+#@router.get("/list", response_model=PublicExperimentAsk, status_code=HTTP_200_OK)
+# create an endpoint to see all experiments for a particular user
