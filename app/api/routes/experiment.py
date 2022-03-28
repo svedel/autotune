@@ -112,8 +112,11 @@ async def experiment_all(credentials: HTTPAuthorizationCredentials = Security(be
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        # find all experiments where user is user
-        experiments = await Experiment.objects.filter(user__uuid=user.uuid).all()
+        # find all experiments where user is JWT user
+        #experiments = await Experiment.objects.filter(user__uuid=user.uuid).all()
+        experiments = await Experiment.objects.filter(user__uuid=user.uuid).order_by(Experiment.time_updated.desc()).all()
+
+        # sort experiment based on last updated time
 
         print(experiments)
 
