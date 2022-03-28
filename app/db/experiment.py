@@ -157,9 +157,9 @@ class Experiment(ormar.Model):
     model_object_binary: str = ormar.LargeBinary(max_length=1000000, nullable=True) #ormar.Text(nullable=True)  # model file dumped to str
 
 
-class PublicExperiment(pydantic.BaseModel):
+class PublicExperimentBase(pydantic.BaseModel):
     '''
-    data model for returning experiments (data from 'experiment' table)
+    base data model for returning experiments (data from 'experiment' table), used to return list of experiments
     '''
     exp_uuid: UUID4
     name: str
@@ -174,6 +174,12 @@ class PublicExperiment(pydantic.BaseModel):
     covars_best_response: Json
     covars_sampled_iter: int
     response_sampled_iter: int
+
+
+class PublicExperiment(PublicExperimentBase):
+    '''
+    data model for returning experiments (data from 'experiment' table)
+    '''
     user_uuid: UUID4
 
 
