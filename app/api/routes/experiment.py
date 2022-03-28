@@ -4,8 +4,9 @@ from jose import JWTError, jwt, ExpiredSignatureError
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import ValidationError
 from uuid import UUID
+from typing import List
 
-from app.db import PublicCreateExperiment, PublicExperiment, User, Experiment, PublicExperimentAsk
+from app.db import PublicCreateExperiment, PublicExperiment, User, Experiment, PublicExperimentAsk, PublicExperimentBase
 from app.core.auth import bearer_scheme
 from app.core.config import settings
 from app.api.helpers import ExperimentOperations
@@ -94,7 +95,36 @@ async def experiment_ask(exp_uuid: UUID, credentials: HTTPAuthorizationCredentia
         raise HTTPException(status_code=403, detail="Token expired")
 
 
-#@router.post("/tell/{exp_uuid}", response_model=PublicExperimentAsk, status_code=HTTP_200_OK)
+@router.get("/all", response_model=List[PublicExperimentBase], response_model_exclude={"user_uuid"}, status_code=HTTP_200_OK)
+async def experiment_all(credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)):
+    '''
+    endpoint to post all experiments by user with provided credentials, ordered by last update date
+    '''
+
+    try:
+        # decode
+        payload = jwt.decode(credentials.credentials, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
+
+        # check user
+        user = await User.objects.filter(id=int(payload.get("sub"))).first()
+        if not payload["type"] == "access_token":
+            raise HTTPException(status_code=401, detail="Invalid token")
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # find all experiments where user is user
+        experiments = await Experiment.objects.filter(user__uuid=user.uuid).all()
+
+        print(experiments)
+
+        return experiments
+
+    except (JWTError, ValidationError):
+        raise HTTPException(status_code=403, detail="Could not validate credentials")
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=403, detail="Token expired")
+
+
 # ednpoint to report results
 
 #@router.get("/list", response_model=PublicExperimentAsk, status_code=HTTP_200_OK)
