@@ -113,7 +113,6 @@ async def experiment_all(credentials: HTTPAuthorizationCredentials = Security(be
             raise HTTPException(status_code=401, detail="Invalid token")
 
         # find all experiments where user is JWT user
-        #experiments = await Experiment.objects.filter(user__uuid=user.uuid).all()
         experiments = await Experiment.objects.filter(user__uuid=user.uuid).order_by(Experiment.time_updated.desc()).all()
 
         # sort experiment based on last updated time
@@ -130,5 +129,4 @@ async def experiment_all(credentials: HTTPAuthorizationCredentials = Security(be
 
 # ednpoint to report results
 
-#@router.get("/list", response_model=PublicExperimentAsk, status_code=HTTP_200_OK)
-# create an endpoint to see all experiments for a particular user
+
