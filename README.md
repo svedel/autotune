@@ -169,7 +169,7 @@ uuid `<EXP_UUID>` can be obtained from the `experiment/new` endpoint)
 ```python
 import requests
 
-url = "http://dev.autotune.localhost:8008/experiment/new/<EXP_UUID>"
+url = "http://dev.autotune.localhost:8008/experiment/new/<EXP_UUID>"  # example exp_uuid: c111e09d-93fe-462c-bfba-3e72b727e52d
 headersAuth = {"Authorization": "Bearer <TOKEN>"}  # example token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiZXhwIjoxNjQ3ODQzMzAxLCJpYXQiOjE2NDcxNTIxMDEsInN1YiI6IjEifQ.h9r3zJ1RYZt7PoAvPpwne-MPIfKDNPsMq9nMmoRfiA8
 
 r = requests.get(url, headers=headersAuth)
