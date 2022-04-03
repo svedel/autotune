@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Security, HTTPException
-from starlette.status import HTTP_201_CREATED, HTTP_200_OK
+from starlette.status import HTTP_201_CREATED, HTTP_200_OK, HTTP_202_ACCEPTED
 from jose import JWTError, jwt, ExpiredSignatureError
 from fastapi.security import HTTPAuthorizationCredentials
-from pydantic import ValidationError
+from pydantic import ValidationError, Json
 from uuid import UUID
 from typing import List
 
-from app.db import PublicCreateExperiment, PublicExperiment, User, Experiment, PublicExperimentAsk, PublicExperimentBase
+from app.db import PublicCreateExperiment, PublicExperiment, User, Experiment, PublicExperimentAsk, \
+    PublicExperimentBase, PublicExperimentTell
 from app.core.auth import bearer_scheme
 from app.core.config import settings
 from app.api.helpers import ExperimentOperations
@@ -112,12 +113,8 @@ async def experiment_all(credentials: HTTPAuthorizationCredentials = Security(be
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        # find all experiments where user is JWT user
+        # find all experiments where user is JWT user and sort based on time_updated
         experiments = await Experiment.objects.filter(user__uuid=user.uuid).order_by(Experiment.time_updated.desc()).all()
-
-        # sort experiment based on last updated time
-
-        print(experiments)
 
         return experiments
 
@@ -128,5 +125,48 @@ async def experiment_all(credentials: HTTPAuthorizationCredentials = Security(be
 
 
 # ednpoint to report results
+@router.post("/tell/{exp_uuid}", response_model=PublicExperimentTell, status_code=HTTP_202_ACCEPTED)
+async def experiment_tell(
+        exp_uuid: UUID,
+        covars_tell: Json,
+        response_tell: Json,
+        credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)
+):
+    '''
+    endpoint for reporting the results of the last experiment (outcome with the last set of covariates obtained from
+    /ask/{exp_uuid} endpoint
 
+    assumes /ask/{exp_uuid} has been run first, but the covariate values reported to this present endpoint do not need
+    to match the proposed covariates from /ask/{exp_uuid}
+    '''
 
+    print("inside endpoint function")
+
+    try:
+        # decode
+        payload = jwt.decode(credentials.credentials, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
+
+        # check user
+        user = await User.objects.filter(id=int(payload.get("sub"))).first()
+        if not payload["type"] == "access_token":
+            raise HTTPException(status_code=401, detail="Invalid token")
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # check user has access to experiment
+        exp = await Experiment.objects.filter(exp_uuid=exp_uuid).first()
+        await exp.user.load()  # load the user for this exp from the db
+        if not exp:
+            raise HTTPException(status_code=404, detail="Experiment not found")
+        if not exp.user.uuid == user.uuid:
+            raise HTTPException(status_code=403, detail="Forbidden. User does not have access to this experiment")
+
+        # send exp, covars_tell and response_tell to backend method for processing
+        tell_exp = ExperimentOperations.tell_datapoint(exp=exp, covars_tell=covars_tell, response_tell=response_tell)
+
+        return tell_exp
+
+    except (JWTError, ValidationError):
+        raise HTTPException(status_code=403, detail="Could not validate credentials")
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=403, detail="Token expired")
