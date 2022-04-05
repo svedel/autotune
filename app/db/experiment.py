@@ -200,7 +200,7 @@ class PublicExperimentTell(pydantic.BaseModel):
 
     exp_uuid: UUID4
     covars_tell: str  # json of user-provided covariates (from pandas .to_json-method)
-    response_tell: str # json of user-provided response to those covariates (from pandas .to_json-method)
+    response_tell: str  # json of user-provided response to those covariates (from pandas .to_json-method)
     best_response: str
     covars_best_reponse: str
     covars_sampled_iter: int
