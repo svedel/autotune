@@ -1,10 +1,15 @@
 import asyncio
 import json
 import dill as dl
+import pandas as pd
+
 from datetime import datetime
+from fastapi import HTTPException
+from fastapi.encoders import jsonable_encoder
 from greattunes import TuneSession
 from greattunes.data_format_mappings import tensor2pretty_covariate
-from app.db import Experiment, User, PublicExperiment, PublicExperimentAsk
+
+from app.db import Experiment, User, PublicExperiment, PublicExperimentAsk, PublicExperimentTell
 
 
 # custom json encoder for sets
@@ -252,5 +257,188 @@ class ExperimentOperations:
         )
 
         return proposed_df.to_json(orient="records")
+
+    @staticmethod
+    def _process_json_to_pandas(input_json):
+        '''
+        assumes input_json is as a pandas df converted to json string using .to_json() method. This method parses this
+        string and returns the pandas df, and raises an exception if this is not possible
+        :param input_json (json str of pandas df (one row))
+        :return input_df (pandas df)
+        '''
+
+        try:
+            # reads covars to pandas
+            #input_df = pd.read_json(input_json)
+            input_df = pd.DataFrame(jsonable_encoder(input_json))
+
+            return input_df
+
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Unprocessable entity: input json " + str(input_json))
+
+    @staticmethod
+    def _verify_df_content_type(df, covar_details, content_type="covars"):
+        '''
+        verifies column data type of each field in pandas dataframe df, assuming it is of type 'covars' or
+        'response'. For 'covars' will use covar_details as comparison.
+
+        Column names in df must match names in model_object.covar_details for covariates. For response, there must be
+        only a single column of name 'Response'
+
+        Any missing columns (as judged by column names) will be ignored
+
+        :param df (pandas dataframe):
+        :param covar_details (covar_details attribute from instantiated object of type TuneSession):
+        :param content_type (str; can take values "covars" or "response"):
+        :return:
+        '''
+
+        # initialize
+        verified = False
+
+        # mapping table (pandas uses different types than native python). Recast all to string type and compare strings.
+        # Format: {pandas, python}
+        mapping_table = {"object": str(str), "float64": str(float), "int64": str(int)}
+
+        # get column names and data types as list of tuples
+        if content_type == "response":
+            col_types = {"Responses": str(float)}
+        elif content_type == "covars":
+            col_types = {k: str(v["type"]) for k, v in covar_details.items()}
+
+        # loop through columns
+        # for each column, grab the data type and convert to correct str using mapping table
+        # check that type is identical to what's in covars_details (str of that), using str compare
+        for ct in df.columns.to_list():
+
+            # verify column name in the experiment by checking it exists in covar_details
+            if ct in list(col_types.keys()):
+
+                # verify data type
+                if not mapping_table[str(df[ct].dtype)] == col_types[ct]:
+                    raise TypeError("ExperimentOperations._verify_df_content_type: Expected data type " + col_types[ct]
+                                    + " but received " + mapping_table[str(df[ct].dtype)] + " for variable '" + ct + "'")
+
+        verified = True
+        return verified
+
+    @staticmethod
+    def _verify_df_columns(df, covar_details, content_type="covars"):
+        '''
+        verifies name of each field in pandas dataframe df, assuming it is of type 'covars' or 'response'.
+        For 'covars' will use covar_details as comparison.
+
+        Column names in df must match names in model_object.covar_details for covariates. For response, there must be
+        only a single column of name 'Response'
+
+        :param df (pandas dataframe):
+        :param covar_details (covar_details attribute from instantiated object of type TuneSession):
+        :param content_type (str; can take values "covars" or "response"):
+        :return:
+        '''
+
+        verified = False
+
+        # reference: columns to verify
+        if content_type == "response":
+            col_names = ["Response"]
+        elif content_type == "covars":
+            col_names = list(covar_details.keys())
+
+        # verify that all required column names are there
+        df_col_names = df.columns.to_list()
+        for cn in col_names:
+            if cn not in df_col_names:
+                verified = False
+                raise NameError("ExperimentOperations._verify_df_columns: Missing expected column " + cn + ", perhaps others.")
+
+        verified = True
+        return verified
+
+    @staticmethod
+    async def tell_datapoint(exp, covars_tell, response_tell):
+        '''
+        adds user-provided data for latest experiment to model and updates model in response to this data. Specifically
+        does the following
+        - verifies data content of user-provided data from latest experiment for covariates and response (verifies all
+        column names present and their data types), otherwise raises HTTPExceptions
+        - adds data to model (if passes tests), updates (re-trains) model
+        - updates 'exp' entry in 'experiment' db table
+
+        TODO: output data in json format is currently coverted to str because of issues handling native json format
+
+        :param exp (object): instantiated object of type Experiment corresponding to an entry in 'experiment' db table
+        :param covars_tell (json): pandas df for covariates serialized to json via .to_json method and provided via
+        'experiment/tell/{uuid}' endpoint. Each covariate must have its own column
+        :param response_tell (json): pandas df for response serialized to json via .to_json method. Must only contain
+        on column named "Response" which must be of type float
+        :return tell_exp (instantiated data model object of type PublicExperimentTell)
+        '''
+
+        # load model and retrieve covar_details
+        model_object = ParseModel.load_model_object_binary_from_string(exp.model_object_binary)
+        covar_details = model_object.covar_details
+
+        # convert and check content of covars_tell
+        covars_df = ExperimentOperations._process_json_to_pandas(input_json=covars_tell)
+        try:
+            if not ExperimentOperations._verify_df_columns(df=covars_df, covar_details=covar_details,
+                                                           content_type="covars"):
+                raise ValueError("ExperimentOperations.tell_datapoint: Field names for covariates not accepted.")
+            if not ExperimentOperations._verify_df_content_type(df=covars_df, covar_details=covar_details,
+                                                                content_type="covars"):
+                raise TypeError("ExperimentOperations.tell_datapoint: Reported type for covariates not accepted.")
+        except (ValueError, NameError, TypeError):
+            raise HTTPException(status_code=422, detail="Unprocessable entity: covariates")
+
+        # convert and check content of response_tell
+        response_df = ExperimentOperations._process_json_to_pandas(input_json=response_tell)
+        try:
+
+            if not ExperimentOperations._verify_df_columns(df=response_df, covar_details=covar_details,
+                                                           content_type="response"):
+                raise ValueError("ExperimentOperations.tell_datapoint: Field name for response not accepted.")
+            if not ExperimentOperations._verify_df_content_type(df=response_df, covar_details=covar_details,
+                                                                content_type="response"):
+                raise TypeError("ExperimentOperations.tell_datapoint: Reported type for response not accepted.")
+        except (ValueError, NameError, TypeError):
+            raise HTTPException(status_code=422, detail="Unprocessable entity: response")
+
+        # report new data to model, save
+        model_object.tell(covar_obs=covars_df, response_obs=response_df)
+
+        # get best response
+        best_response_json, covars_best_response_json = ParseModel.dump_best_response_to_json(model_object)
+
+        # number of iterations taken in tuning
+        covars_sampled_iter, response_sampled_iter = ParseModel.dump_iteration_numbers(model_object)
+
+        # update 'exp' entry in 'experiments' db table
+        exp.model_object_binary = ParseModel.dump_model_object_binary_to_string(model_object)
+        exp.best_response = best_response_json
+        exp.covars_best_response = covars_best_response_json
+        exp.covars_sampled_iter = covars_sampled_iter
+        exp.response_sampled_iter = response_sampled_iter
+        exp.time_updated = datetime.utcnow()
+
+        await exp.update(_columns=["model_object_binary", "best_response", "covars_best_response",
+                                   "covars_sampled_iter", "response_sampled_iter", "time_updated"])  # updates fields in database
+
+        # return output to user (new data model)
+        await exp.load()
+
+        tell_exp = PublicExperimentTell(
+            exp_uuid=exp.exp_uuid,
+            covars_tell=str(covars_tell),
+            response_tell=str(response_tell),
+            best_response=str(exp.best_response),
+            covars_best_reponse=str(exp.covars_best_response),
+            covars_sampled_iter=exp.covars_sampled_iter,
+            response_sampled_iter=exp.response_sampled_iter,
+            time_updated=exp.time_updated
+        )
+
+        return tell_exp
 
 
