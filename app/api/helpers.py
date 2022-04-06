@@ -5,6 +5,7 @@ import pandas as pd
 
 from datetime import datetime
 from fastapi import HTTPException
+from fastapi.encoders import jsonable_encoder
 from greattunes import TuneSession
 from greattunes.data_format_mappings import tensor2pretty_covariate
 
@@ -268,12 +269,13 @@ class ExperimentOperations:
 
         try:
             # reads covars to pandas
-            input_df = pd.read_json(input_json)
+            #input_df = pd.read_json(input_json)
+            input_df = pd.DataFrame(jsonable_encoder(input_json))
 
             return input_df
 
         except ValueError:
-            raise HTTPException(status_code=422, detail="Unprocessable entity: input json " + input_json)
+            raise HTTPException(status_code=422, detail="Unprocessable entity: input json " + str(input_json))
 
     @staticmethod
     def _verify_df_content_type(df, covar_details, content_type="covars"):
@@ -340,7 +342,7 @@ class ExperimentOperations:
 
         # reference: columns to verify
         if content_type == "response":
-            col_names = "Response"
+            col_names = ["Response"]
         elif content_type == "covars":
             col_names = list(covar_details.keys())
 
@@ -364,6 +366,8 @@ class ExperimentOperations:
         - adds data to model (if passes tests), updates (re-trains) model
         - updates 'exp' entry in 'experiment' db table
 
+        TODO: output data in json format is currently coverted to str because of issues handling native json format
+
         :param exp (object): instantiated object of type Experiment corresponding to an entry in 'experiment' db table
         :param covars_tell (json): pandas df for covariates serialized to json via .to_json method and provided via
         'experiment/tell/{uuid}' endpoint. Each covariate must have its own column
@@ -371,8 +375,6 @@ class ExperimentOperations:
         on column named "Response" which must be of type float
         :return tell_exp (instantiated data model object of type PublicExperimentTell)
         '''
-
-        print("inside processing function")
 
         # load model and retrieve covar_details
         model_object = ParseModel.load_model_object_binary_from_string(exp.model_object_binary)
@@ -386,25 +388,22 @@ class ExperimentOperations:
                 raise ValueError("ExperimentOperations.tell_datapoint: Field names for covariates not accepted.")
             if not ExperimentOperations._verify_df_content_type(df=covars_df, covar_details=covar_details,
                                                                 content_type="covars"):
-                raise ValueError("ExperimentOperations.tell_datapoint: Reported values for covariates not accepted.")
+                raise TypeError("ExperimentOperations.tell_datapoint: Reported type for covariates not accepted.")
         except (ValueError, NameError, TypeError):
             raise HTTPException(status_code=422, detail="Unprocessable entity: covariates")
-
-        print("covars accepted")
 
         # convert and check content of response_tell
         response_df = ExperimentOperations._process_json_to_pandas(input_json=response_tell)
         try:
+
             if not ExperimentOperations._verify_df_columns(df=response_df, covar_details=covar_details,
                                                            content_type="response"):
                 raise ValueError("ExperimentOperations.tell_datapoint: Field name for response not accepted.")
             if not ExperimentOperations._verify_df_content_type(df=response_df, covar_details=covar_details,
                                                                 content_type="response"):
-                raise ValueError("ExperimentOperations.tell_datapoint: Reported value for response not accepted.")
+                raise TypeError("ExperimentOperations.tell_datapoint: Reported type for response not accepted.")
         except (ValueError, NameError, TypeError):
             raise HTTPException(status_code=422, detail="Unprocessable entity: response")
-
-        print("response accepted")
 
         # report new data to model, save
         model_object.tell(covar_obs=covars_df, response_obs=response_df)
@@ -419,8 +418,8 @@ class ExperimentOperations:
         exp.model_object_binary = ParseModel.dump_model_object_binary_to_string(model_object)
         exp.best_response = best_response_json
         exp.covars_best_response = covars_best_response_json
-        exp.covars_sampled_iter = covars_sampled_iter,
-        exp.response_sampled_iter = response_sampled_iter,
+        exp.covars_sampled_iter = covars_sampled_iter
+        exp.response_sampled_iter = response_sampled_iter
         exp.time_updated = datetime.utcnow()
 
         await exp.update(_columns=["model_object_binary", "best_response", "covars_best_response",
@@ -431,10 +430,10 @@ class ExperimentOperations:
 
         tell_exp = PublicExperimentTell(
             exp_uuid=exp.exp_uuid,
-            covars_tell=covars_tell,
-            response_tell=response_tell,
-            best_response=exp.best_response,
-            covars_best_reponse=exp.covars_best_response,
+            covars_tell=str(covars_tell),
+            response_tell=str(response_tell),
+            best_response=str(exp.best_response),
+            covars_best_reponse=str(exp.covars_best_response),
             covars_sampled_iter=exp.covars_sampled_iter,
             response_sampled_iter=exp.response_sampled_iter,
             time_updated=exp.time_updated
