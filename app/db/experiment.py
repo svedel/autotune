@@ -196,13 +196,15 @@ class PublicExperimentAsk(pydantic.BaseModel):
 class PublicExperimentTell(pydantic.BaseModel):
     '''
     data model for returning output from TuneSession '.tell'-method, in which user provides results to TuneSession
+
+    TODO: use proper json format for relevant fields
     '''
 
     exp_uuid: UUID4
     covars_tell: str  # json of user-provided covariates (from pandas .to_json-method)
     response_tell: str  # json of user-provided response to those covariates (from pandas .to_json-method)
-    best_response: str
-    covars_best_reponse: str
+    best_response: str  # json of historically best response (from pandas .to_json-method)
+    covars_best_reponse: str  # json of covariates of historically best response (from pandas .to_json-method)
     covars_sampled_iter: int
     response_sampled_iter: int
     time_updated: datetime
