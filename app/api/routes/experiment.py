@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Security, HTTPException
+from fastapi import APIRouter, Security, HTTPException, Body
 from starlette.status import HTTP_201_CREATED, HTTP_200_OK, HTTP_202_ACCEPTED
 from jose import JWTError, jwt, ExpiredSignatureError
 from fastapi.security import HTTPAuthorizationCredentials
@@ -128,8 +128,8 @@ async def experiment_all(credentials: HTTPAuthorizationCredentials = Security(be
 @router.post("/tell/{exp_uuid}", response_model=PublicExperimentTell, status_code=HTTP_202_ACCEPTED)
 async def experiment_tell(
         exp_uuid: UUID,
-        covars_tell: Json,
-        response_tell: Json,
+        covars_tell: Json = Body(...),
+        response_tell: Json = Body(...),
         credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)
 ):
     '''
@@ -139,8 +139,6 @@ async def experiment_tell(
     assumes /ask/{exp_uuid} has been run first, but the covariate values reported to this present endpoint do not need
     to match the proposed covariates from /ask/{exp_uuid}
     '''
-
-    print("inside endpoint function")
 
     try:
         # decode
@@ -162,7 +160,9 @@ async def experiment_tell(
             raise HTTPException(status_code=403, detail="Forbidden. User does not have access to this experiment")
 
         # send exp, covars_tell and response_tell to backend method for processing
-        tell_exp = ExperimentOperations.tell_datapoint(exp=exp, covars_tell=covars_tell, response_tell=response_tell)
+        tell_exp = await ExperimentOperations.tell_datapoint(exp=exp,
+                                                             covars_tell=covars_tell,
+                                                             response_tell=response_tell)
 
         return tell_exp
 
