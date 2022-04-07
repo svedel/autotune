@@ -176,9 +176,46 @@ r = requests.get(url, headers=headersAuth)
 r.json()
 
 # will produce an output like the following if an experiment like the one in the example above is asked
-# {'exp_uuid': '6d11cdf0-8b13-4140-839d-1f924653589b', 'time_updated': '2022-03-27T12:40:55.253019', 'covars_next_exp': '[{"v1":2,"color":"red","weight":6.6}]'}
+# {'exp_uuid': 'c111e09d-93fe-462c-bfba-3e72b727e52d', 'time_updated': '2022-03-27T12:40:55.253019', 'covars_next_exp': '[{"v1":2,"color":"red","weight":6.6}]'}
 ```
 
+### POST action: `experiment/tell/{exp_uuid}` endpoint: report results of experiment
+
+This endpoint is used to report the outcome of an experiment, i.e. the response you got using the latest set of covariates
+as proposed by the call to the `/experiment/ask/{exp_uuid}` endpoint.
+
+The actual covariates used and the response obtained are provided as body parameters. They must be provided as two 
+single-row `pandas` dataframes (one for covariates, another for response) converted to JSON using the `pandas` 
+`to_json`-method.
+* **Covariates**: use a separate column for each covariate and use the covariate name for the column. Data types used when defining the covariates must be followed (during experiment creation via `experiment/new`-endpoint via the `covars` parameter). 
+* **Response**: use a single column named "Response"
+The `pandas` `.to_json`-method can be used with either default options or with the `orient`-option specified.
+
+This endpoint is secured by JWT token similar to other endpoints. 
+
+In the following we extend the example from above and assume that the covariates are of the same (`v1` (type: `int`), `color` (type: `cat`) and `weigth` (type: `cont`))
+```python
+import requests
+import pandas as pd
+
+# results from experiment (obtained before calling API)
+exp_response = pd.DataFrame({"Response": [6.2]})
+exp_covars = pd.DataFrame({"v1": [3], "color": ["green"], "weight": [5.8]})
+
+# data to post
+euuid = "<EXP_UUID>"  # obtained from `/token` endpoint, example exp_uuid: c111e09d-93fe-462c-bfba-3e72b727e52d
+tell_data = {"exp_uuid": euuid, "covars_tell": exp_covars.to_json(orient="records"), "response_tell": exp_response.to_json(orient="records")}  # the option orient="records" makes the JSON easier to read but is not necessary
+
+# endpoint and JWT details
+tellurl = "http://dev.autotune.localhost:8008/experiment/tell/" + euuid
+headersAuth = {"Authorization": "Bearer <TOKEN>"}  # example token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiZXhwIjoxNjQ3ODQzMzAxLCJpYXQiOjE2NDcxNTIxMDEsInN1YiI6IjEifQ.h9r3zJ1RYZt7PoAvPpwne-MPIfKDNPsMq9nMmoRfiA8
+
+# call API
+r  = requests.post(tellurl, headers=headersAuth, json=tell_data)
+
+# will produce an output like the following for an experiment like the one in the example above
+# {'exp_uuid': 'c111e09d-93fe-462c-bfba-3e72b727e52d', 'covars_tell': "[{'v1': 3, 'color': 'green', 'weight': 5.8}]", 'response_tell': "[{'Response': 6.2}]", 'best_response': "{'Response': {'0': 6.2}}", 'covars_best_reponse': "{'v1': {'0': 3}, 'color': {'0': 'green'}, 'weight': {'0': 5.8}}", 'covars_sampled_iter': 1, 'response_sampled_iter': 1, 'time_updated': '2022-04-07T03:48:45.833469'}
+```
 
 ### Prod API
 See details under "Let's Encrypt" in tutorial from testdriven.io references below
