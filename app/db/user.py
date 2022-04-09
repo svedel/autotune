@@ -5,7 +5,6 @@ from typing import Optional
 from datetime import datetime
 
 from app.db.core import BaseMeta
-from app.db.item import Item
 
 
 class User(ormar.Model):
@@ -18,7 +17,6 @@ class User(ormar.Model):
     hashed_password: str = ormar.String(max_length=255, nullable=False)
     time_created: datetime = ormar.DateTime(default=datetime.utcnow, nullable=False)
     active: bool = ormar.Boolean(default=True, nullable=False)
-    item: Optional[Item] = ormar.ForeignKey(Item, nullable=True)
 
 
 # create pydantic model for User without password

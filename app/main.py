@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.api.routes import router as api_router
-from app.db import database, User, Item
+from app.db import database, User
 from app.core.config import settings
 from app.core.security import get_password_hash
 
@@ -9,10 +9,6 @@ tags_metadata = [
     {
         "name": "User",
         "description": "Operations for existing users.",
-    },
-    {
-        "name": "Item",
-        "description": "Operations for items.",
     },
     {
         "name": "Authentication and authorization",
@@ -38,8 +34,7 @@ async def startup():
     if not database.is_connected:
         await database.connect()
 
-    hat = await Item.objects.create(name="hat")
-    await User.objects.get_or_create(email="test@test.com", item=hat, hashed_password=get_password_hash("CHANGEME"))
+    await User.objects.get_or_create(email="test@test.com", hashed_password=get_password_hash("CHANGEME"))
     await User.objects.get_or_create(email="me@somewhere.com", hashed_password=get_password_hash("CHANGEME"))
 
 @app.on_event("shutdown")
