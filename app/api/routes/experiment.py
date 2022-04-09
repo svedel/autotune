@@ -10,8 +10,7 @@ from app.db import PublicCreateExperiment, PublicExperiment, User, Experiment, P
     PublicExperimentBase, PublicExperimentTell
 from app.core.auth import bearer_scheme
 from app.core.config import settings
-from app.api.helpers import ExperimentOperations
-
+from app.experimentops.actions import ExperimentOperations
 
 router = APIRouter()
 
