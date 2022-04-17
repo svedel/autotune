@@ -1,28 +1,19 @@
-# AutoTune
+![alt text](docs/figs/autotune.png)
 
 Natively async API for Bayesian optimization-based model tuning, with load balancing and a separate production setup.
 
-## Tech stack
-* [`fastapi` API framework](https://fastapi.tiangolo.com/) with [`uvicorn` ASGI server](https://www.uvicorn.org/)
-for a natively async API framework
-* [`ormar` for API schemas and database models](https://collerek.github.io/ormar/) - natively async, integrates well
-with `fastapi`, and is based on [`sqlalchemy`](https://www.sqlalchemy.org/) and 
-[`pydantic`](https://pydantic-docs.helpmanual.io/) for API endpoint schemas.
-* [`postgres` database](https://www.postgresql.org/) with [`pgAdmin`](https://www.pgadmin.org/) for database management
-* Networking productionized via [`træfik`](https://traefik.io/)
-* `OAuth2` security via `JWT` tokens (JSON web tokens).
-* your favorite data science library (to be added soon: [`greattunes` for model tuning](https://pypi.org/project/greattunes/))
+# Introduction and basic examples
 
-## Endpoints
-### Dev API
+# Endpoints
+## Dev API
 The dev API is orchestrated via `docker-compose.yml`. The API is available on `dev.autotune.localhost:8008` (the swagger 
 entry point on `dev.autotune.localhost:8008/docs`), the `traefik` dashboard is available on `dev.autotune.localhost:8081` 
 and the `pgadmin` tool for accessing the postgres database is available on `dev.autotune.localhost:5050` (user name and 
 password available through `.env`-file)
 
-### Example API calls
+## Example API calls
 
-#### `/auth/token` endpoint: Getting the access token
+### `/auth/token` endpoint: Getting the access token
 Example code for a user with username (email) `test@test.com` and password `CHANGEME`
 
 In `python`
@@ -41,7 +32,7 @@ Using `curl` on the command line
 svedel@svedel-T430s$ curl -X POST http://dev.autotune.localhost:8008/auth/token -H 'accept: application/json' -d 'username=test%40test.com&password=CHANGEME'
 ```
 
-#### POST action: `experiments/new` endpoint: creating a new experiment
+### POST action: `experiments/new` endpoint: creating a new experiment
 
 For auth purposes this endpoints requires a JWT token to be submitted in the header. In the following it is assumed the 
 token has already been obtained; section "`/auth/token` endpoint: Getting the access token" above explains how to 
@@ -158,7 +149,7 @@ svedel@svedel-T430s$ curl -X 'POST'   'http://dev.autotune.localhost:8008/experi
 
 ```
 
-#### GET action: `experiment/ask/{exp_uuid}` endpoint: get covariates for next experiment
+### GET action: `experiment/ask/{exp_uuid}` endpoint: get covariates for next experiment
 
 For auth purposes this endpoints requires a JWT token to be submitted in the header. In the following it is assumed the 
 token has already been obtained; section "`/auth/token` endpoint: Getting the access token" above explains how to 
@@ -179,7 +170,7 @@ r.json()
 # {'exp_uuid': 'c111e09d-93fe-462c-bfba-3e72b727e52d', 'time_updated': '2022-03-27T12:40:55.253019', 'covars_next_exp': '[{"v1":2,"color":"red","weight":6.6}]'}
 ```
 
-### POST action: `experiment/tell/{exp_uuid}` endpoint: report results of experiment
+## POST action: `experiment/tell/{exp_uuid}` endpoint: report results of experiment
 
 This endpoint is used to report the outcome of an experiment, i.e. the response you got using the latest set of covariates
 as proposed by the call to the `/experiment/ask/{exp_uuid}` endpoint.
@@ -217,21 +208,20 @@ r  = requests.post(tellurl, headers=headersAuth, json=tell_data)
 # {'exp_uuid': 'c111e09d-93fe-462c-bfba-3e72b727e52d', 'covars_tell': "[{'v1': 3, 'color': 'green', 'weight': 5.8}]", 'response_tell': "[{'Response': 6.2}]", 'best_response': "{'Response': {'0': 6.2}}", 'covars_best_reponse': "{'v1': {'0': 3}, 'color': {'0': 'green'}, 'weight': {'0': 5.8}}", 'covars_sampled_iter': 1, 'response_sampled_iter': 1, 'time_updated': '2022-04-07T03:48:45.833469'}
 ```
 
-### Prod API
+## Prod API
 See details under "Let's Encrypt" in tutorial from testdriven.io references below
 
-## Security
+# Security
 
-Three different types of endpoint security has been implemented. Each supports a different experience flow, so
-implementing all 3 is about learning.
+Two different types of endpoint security has been implemented: sign-in based and token-based (JSON web token, JWT). Each supports a different experience flow: sign-in is for a website where the same user can be signed in over longer time, tokens are for an API product where the token is provided as part of the header to validate.
 
 For token-based approaches, the code makes use of access tokens and refresh tokens. The basic idea is that access tokens
 are signed and short-lived, while the non-signed and long-lived refresh token is the one which is used to issue the
 access token. For more details see [this `StackOverflow` post](https://stackoverflow.com/questions/3487991/why-does-oauth-v2-have-both-access-and-refresh-tokens).
 
-### Header-based validation (API product)
+## Header-based validation (API product)
 
-Implemented on the endpoint `/auth/header-me`
+Implemented on all `experiment` endpoints, and for testing on the endpoint `/auth/header-me`
 
 In this approach, the access token ( `<TOKEN>` obtained from `/auth/token` endpoint) is passed in the header 
 of the API call. That is, in this flow, the token must be passed each time, but the user does not need to sign in first.
@@ -244,7 +234,9 @@ The backend checks token and raises exceptions if it's invalid.
 
 Details of this approach is given here: [Get started with FastAPI JWT authentication](https://dev.to/deta/get-started-with-fastapi-jwt-authentication-part-2-18ok)
 
-### Login-based validation (approach for website)
+The `fastapi` swagger page also supports manually providing JWT headers: for the endpoint you want to use, click on the padlock to the right to provide a valid token and then proceed to use the endpoint as you normally would.
+
+## Login-based validation (approach for website)
 
 For a website, we typically want users to sign in once and then just use the site dedicated to them (with their data 
 etc). For this, a solution has been implemented in which users would log in once and then any subsequent API call would
@@ -262,11 +254,20 @@ Example call to `/auth/me` endpoint to validate login
 svedel@svedel-T430s:~/fastapi_postgres_docker_check$ curl -X GET http://fastapi.localhost:8008/auth/me
 ```
 
-### HTTP validation 
+# Technical details
 
-## Support tools
+## Tech stack
+* [`fastapi` API framework](https://fastapi.tiangolo.com/) with [`uvicorn` ASGI server](https://www.uvicorn.org/)
+for a natively async API framework
+* [`ormar` for API schemas and database models](https://collerek.github.io/ormar/) - natively async, integrates well
+with `fastapi`, and is based on [`sqlalchemy`](https://www.sqlalchemy.org/) and 
+[`pydantic`](https://pydantic-docs.helpmanual.io/) for API endpoint schemas.
+* [`postgres` database](https://www.postgresql.org/) with [`pgAdmin`](https://www.pgadmin.org/) for database management
+* Networking productionized via [`træfik`](https://traefik.io/)
+* `OAuth2` security via `JWT` tokens (JSON web tokens).
+* Bayesian optimization library (doing the actual work): [`greattunes` for model tuning](https://pypi.org/project/greattunes/)
 
-### Database management
+## Database management
 
 An instance of the postgres admin tool `pgAdmin4` is set up for this application. For the development system it is 
 available on port 5050 (`http://dev.autotune.localhost:5050/`). Login credentials are
@@ -299,7 +300,7 @@ Finally, the tables can be accessed using the tree to the left under Servers > a
 
 ![alt text](docs/figs/find_tables.png)
 
-## References
+# References
 * [Christopher GS: blog on `fastapi` app building](https://christophergs.com/tutorials/ultimate-fastapi-tutorial-pt-10-auth-jwt/)
 * [testdriven.io: Dockerizing FastAPI with Postgres, Uvicorn and Traefik](https://testdriven.io/blog/fastapi-docker-traefik/#postgres)
 * [Get started with FastAPI JWT authentication](https://dev.to/deta/get-started-with-fastapi-jwt-authentication-part-2-18ok)
