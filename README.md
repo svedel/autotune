@@ -2,7 +2,78 @@
 
 Natively async API for Bayesian optimization-based model tuning, with load balancing and a separate production setup.
 
-# Introduction and basic examples
+# Introduction and basic examples 
+[Hyperparameter](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning)) tuning is an important part of the 
+machine learning development workflow. Tuning hyperparameters may not seem like a big
+challenge for a model with only 1 or 2, but for models where each training session is time consuming or expensive such as 
+large models (e.g. deep learning models with hundreds of nodes and tens of hidden layers) or models deployed in 
+situations with limited connectivity (e.g. edge analytics), finding good hyperparameters with the fewest iterations is
+paramount.
+
+This repo contains a productionized API to achieve this using [Bayesian optimization](https://en.wikipedia.org/wiki/Bayesian_optimization). 
+Bayesian optimization is a structured approach which updates the sampling strategy after each set of hyperparameters is 
+tested to proposed the next set of hyperparameters which will maximize the expected learning of the model. The workhorse 
+is the `PyTorch`-based [`greattunes` Bayesian optimization library](https://pypi.org/project/greattunes/) which allows
+for mixed variables of **integers**, **continuous** and **categorical** types.
+
+## Terminology
+A tuning session for hyperparameters for a model is called an **"experiment"**. It often contains multiple rounds of
+trying hyperparameter candidates and iteratively improving them. The user **"asks"** the API for a new set of 
+hyperparameters to try and **"tells"** how these performed use a **"response"**. The API will maximize the response; if 
+you want to minimize, just use the negative of the actual response.
+
+## Basic example
+This contains an example of how to tune the hyperparameters for a 
+[random forest regression model from `scikit learn`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html). 
+We focus on two hyperparameters but the example could be expanded to all the hyperparameters.
+
+In the following we assume a user has been created and the token `<TOKEN>` has been provided. How to create a user and get a token is [detailed below](#Creating-a-user-and-getting-a-token).
+
+### Step 1: Create experiment
+Create an experiment with two variables
+* `n_estimators`: an integer describing the number of trees in the forest
+* `min_samples_split`: a continuous variable in the range [0; 1] giving the fraction of samples in each split.
+
+```python
+import requests
+
+# url of the endpoint
+create_url = "http://dev.autotune.localhost:8008/experiment/new"
+
+# security: JWT header
+headersAuth = {"Authorization": "Bearer <TOKEN>"}  # example token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiZXhwIjoxNjQ3ODQzMzAxLCJpYXQiOjE2NDcxNTIxMDEsInN1YiI6IjEifQ.h9r3zJ1RYZt7PoAvPpwne-MPIfKDNPsMq9nMmoRfiA8
+
+# define experiment details, including the parameters we want to tune
+json_data = {
+  "name": "RandomForest_nestimators_minsampsplit",
+  "description": "Two-parameter tuning of random forest",
+  "covars": {
+    "n_estimators": {
+      "vtype": "int",
+      "guess": 100,
+      "min": 10,
+      "max": 500
+    },
+    "min_samples_split": {
+      "vtype": "cont",
+      "guess": 0.3,
+      "min": 0.0,
+      "max": 1.0
+    }
+  },
+  "model_type": "SingleTaskGP",
+  "acq_func": "ExpectedImprovement"
+}
+
+# post to API
+r = requests.post(create_url, headers=headersAuth, json=json_data)
+```
+
+The `covars`-part of `json_data` defines the hyperparameters of the experiment, with one dictionary per variable. [See 
+further details below](#POST-action:-`experiments/new`-endpoint:-creating-a-new-experiment) of how to create experiments with more hyperparameters (and other data types).
+
+## Creating a user and getting a token
+
 
 # Endpoints
 ## Dev API
@@ -261,7 +332,7 @@ svedel@svedel-T430s:~/fastapi_postgres_docker_check$ curl -X GET http://fastapi.
 for a natively async API framework
 * [`ormar` for API schemas and database models](https://collerek.github.io/ormar/) - natively async, integrates well
 with `fastapi`, and is based on [`sqlalchemy`](https://www.sqlalchemy.org/) and 
-[`pydantic`](https://pydantic-docs.helpmanual.io/) for API endpoint schemas.
+[`pydantic`](https://pydantic-docs.helpmanual.io/) for API endpoint schemas and data models, and with [`alembic`](https://alembic.sqlalchemy.org/en/latest/) for database migration.
 * [`postgres` database](https://www.postgresql.org/) with [`pgAdmin`](https://www.pgadmin.org/) for database management
 * Networking productionized via [`træfik`](https://traefik.io/)
 * `OAuth2` security via `JWT` tokens (JSON web tokens).
