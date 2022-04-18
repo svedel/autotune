@@ -516,6 +516,8 @@ svedel@svedel-T430s:~/fastapi_postgres_docker_check$ curl -X GET http://fastapi.
 
 # Technical details
 
+**Note: No tests included at present**
+
 ## Tech stack
 * [`fastapi` API framework](https://fastapi.tiangolo.com/) with [`uvicorn` ASGI server](https://www.uvicorn.org/)
 for a natively async API framework
