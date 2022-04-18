@@ -253,7 +253,23 @@ The token can be grabbed via `r.json()["access_token"]`.
 The dev API is orchestrated via `docker-compose.yml`. The API is available on `dev.autotune.localhost:8008` (the swagger 
 entry point on `dev.autotune.localhost:8008/docs`), the `traefik` dashboard is available on `dev.autotune.localhost:8081` 
 and the `pgadmin` tool for accessing the postgres database is available on `dev.autotune.localhost:5050` (user name and 
-password available through `.env`-file)
+password available through `.env`-file).
+
+Full list of available endpoints
+* User
+  * `/user/`: get all users 
+  * `/user/{user_id}`: get all user details via user UUID.
+  * `/user/signup`: create new user from `email` and `password`
+* Authentication and authorization
+  * `/auth/login`: login via username and password
+  * `/auth/me`: test endpoint to verify `username` and `password` (secured with username and password)
+  * `/auth/token`: generate JWT token
+  * `/auth/header-me`: test endpoint to verify JWT token (secured with token)
+* Experiment
+  * `/experiment/new`: create new experiment (secured with token)
+  * `/experiment/ask/{exp_uuid}`: get proposal for hyperparameters for experiment UUID (secured with token)
+  * `/experiment/all`: list all experiments (secured with token)
+  * `/experiment/tell/{exp_uuid}`: report used hyperparameters and performance for experiment UUID (secured with token)
 
 ## Example API calls
 
@@ -543,6 +559,19 @@ database, and the value for both are `fastapi` (these parameters are defined in 
 Finally, the tables can be accessed using the tree to the left under Servers > autotune.dev > fastapi > schemas > tables
 
 ![alt text](docs/figs/find_tables.png)
+
+## Database migrations
+[`Alembic`](https://alembic.sqlalchemy.org/en/latest/) has been enabled for database migrations. 
+
+Create and enable migrations using the normal Alembic workflow. Specifically, execute the alembic commands directly in the `web` Docker container where the backend code is held using (on the command line) 
+```commandline
+$ docker-compose exec web alembic upgrade head
+```
+For more details, see either [this blogpost from `testdriven.io`](https://testdriven.io/blog/fastapi-sqlmodel/) or this
+entry from the [`ormar` documentation](https://collerek.github.io/ormar/models/migrations/).
+
+**Note:** Inside `main.py` the code currently initializes the database and subsequently adds data via the `on_event("startup")`-action. Perhaps this needs to be revised for migrations to work properly. 
+
 
 # References
 * [Christopher GS: blog on `fastapi` app building](https://christophergs.com/tutorials/ultimate-fastapi-tutorial-pt-10-auth-jwt/)
