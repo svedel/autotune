@@ -8,7 +8,8 @@ machine learning development workflow. Tuning hyperparameters may not seem like 
 challenge for a model with only 1 or 2, but for models where each training session is time consuming or expensive such as 
 large models (e.g. deep learning models with hundreds of nodes and tens of hidden layers) or models deployed in 
 situations with limited connectivity (e.g. edge analytics), finding good hyperparameters with the fewest iterations is
-paramount.
+paramount. The issue is that simply running a grid search in hyperparameter space quickly becomes [prohibitively 
+expensive](https://en.wikipedia.org/wiki/Curse_of_dimensionality) as he number of hyperparameters grow above a few. 
 
 This repo contains a productionized API to achieve this using [Bayesian optimization](https://en.wikipedia.org/wiki/Bayesian_optimization). 
 Bayesian optimization is a structured approach which updates the sampling strategy after each set of hyperparameters is 
@@ -27,7 +28,9 @@ This contains an example of how to tune the hyperparameters for a
 [random forest regression model from `scikit learn`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html). 
 We focus on two hyperparameters but the example could be expanded to all the hyperparameters.
 
-In the following we assume a user has been created and the token `<TOKEN>` has been provided. How to create a user and get a token is [detailed below](#Creating-a-user-and-getting-a-token).
+In the following we assume a user has been created and the token `<TOKEN>` has been provided. How to create a user and 
+get a token is [detailed below](#Creating-a-user-and-getting-a-token). All the code snippets presented below can be used 
+as a single continuous script.
 
 ### Step 1: Create experiment
 Create an experiment with two variables
@@ -67,10 +70,152 @@ json_data = {
 
 # post to API
 r = requests.post(create_url, headers=headersAuth, json=json_data)
+
+# get experiment UUID (to be used for further communication)
+exp_uuid = r.json()["exp_uuid"]
 ```
 
 The `covars`-part of `json_data` defines the hyperparameters of the experiment, with one dictionary per variable. [See 
-further details below](#POST-action:-`experiments/new`-endpoint:-creating-a-new-experiment) of how to create experiments with more hyperparameters (and other data types).
+further details below](#POST-action:-experiments/new-endpoint:-creating-a-new-experiment) of how to create experiments with more hyperparameters (and other data types).
+
+### Step 2: getting suggestions for hyperparameters
+```python
+# the ask url (using "exp_uuid" from Step 1)
+askurl = "http://dev.autotune.localhost:8008/experiment/ask/" + exp_uuid
+
+# get the first set of hyperparameters to test
+r_ask = requests.get(askurl, headers=headerAuth)
+
+# inspecting the content of r_ask you will find something like this
+# {'exp_uuid': '78eb27e5-8427-4365-a9c0-0cc9ccc10ae7', 'time_updated': '2022-04-18T04:49:27.670987', 'covars_next_exp': '[{"n_estimators":100,"min_samples_split":0.3}]'}
+```
+
+The proposed hyperparameters are given by `covars_next_exp`.
+
+### Step 3: Create model with proposed hyperparameters and tell about results
+To see performance, we first need to actually set up the random forest model and run in on a problem to be able to assess 
+the performance of the hyperparameters. Here, we [generate a dataset using `make_regression` from `scikit learn`](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_regression.html?highlight=make_regression#sklearn.datasets.make_regression) to just
+illustrate `autotune`. This dataset will not be updated during the example.
+```python
+# create dataset
+from sklearn.datasets import make_regression
+X, y = make_regression(n_features=4, n_informative=2, random_state=0, shuffle=False)
+```
+
+Create model with proposed hyperparameters and get performance. For the data from `make_regression` we will interrogate
+at the point [0, 0, 0, 0] to measure performance
+```python
+# get hyperparameters from API call to "ask"
+import json
+payload = json.loads(r_ask.json()["covars_next_exp"])[0]
+n_estimators = payload["n_estimators"]
+min_samples_split = payload["min_samples_split"]
+
+# create the model
+from sklearn.ensemble import RandomForestRegressor
+rf = RandomForestRegressor(n_estimators=n_estimators, min_samples_split=min_samples_split)
+
+# fit the new model and check performance
+rf.fit(X, y)
+pred = rf.predict([[0,0,0,0]])  # we will use the prediction at [0,0,0,0] as the target to optimize. This is contrived, in an actual example we would want to compare to a reference to gauge performance
+
+# cast used hyperparameters and result as pandas dfs
+import pandas as pd
+covars_df = pd.DataFrame({"n_estimators": [n_estimators], "min_samples_split": [min_samples_split]})
+response_df = pd.DataFrame({"Response": [pred[0]]})
+
+# communicate result to "tell" endpoint
+tellurl = "http://dev.autotune.localhost:8008/experiment/tell/" + exp_uuid  # use "exp_uuid" from Step 1
+json_tell_data = {"exp_uuid": exp_uuid, "covars_tell": covars_df.to_json(orient="records"), "response_tell": response_df.to_json(orient="records")}
+r_tell = requests.post(tellurl, headers=headerAuth, json=json_tell_data)  # use headerAuth from Step 1
+
+# inspecting the content of r_tell you will find something like this
+# {'exp_uuid': '78eb27e5-8427-4365-a9c0-0cc9ccc10ae7', 'covars_tell': "[{'n_estimators': 100, 'min_samples_split': 0.3}]", 'response_tell': "[{'Response': -1.7829311504}]", 'best_response': "{'Response': {'0': -1.7829311504}}", 'covars_best_reponse': "{'n_estimators': {'0': 100}, 'min_samples_split': {'0': 0.3}}", 'covars_sampled_iter': 1, 'response_sampled_iter': 1, 'time_updated': '2022-04-18T05:33:59.997785'}
+```
+The best response is now available from `r_tell` as `best_response`, and the hyperparameters that produced this are available in `covars_best_response`.
+
+With the new data provided via the call to the `tell`-endpoint, the system has updated its belief and a proposal for new hyperparameters will be made by calling `ask`.
+
+**Note I:** In an actual setting you would typically run multiple iterations of `ask` and `tell`, typically embedded in a 
+loop.
+
+**Note II:** Calling `ask` multiple times without running the model with the proposed hyperparameters won't update the belief of the system. It also won't harm, so nothing bad will come from doing so, it's just important to be aware that the system has not gotten wiser so you would essentially be making random guesses.
+
+### A full example
+Writing the above example as a single code script for completion. This should run verbatim
+
+```python
+import requests
+import json 
+from sklearn.datasets import make_regression
+from sklearn.ensemble import RandomForestRegressor
+import pandas as pd
+
+# generate dataset 
+X, y = make_regression(n_features=4, n_informative=2, random_state=0, shuffle=False)
+
+# url for creating new experiment
+create_url = "http://dev.autotune.localhost:8008/experiment/new"
+
+# security: JWT header
+headersAuth = {"Authorization": "Bearer <TOKEN>"}  # example token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiZXhwIjoxNjQ3ODQzMzAxLCJpYXQiOjE2NDcxNTIxMDEsInN1YiI6IjEifQ.h9r3zJ1RYZt7PoAvPpwne-MPIfKDNPsMq9nMmoRfiA8
+
+# define experiment details, including the parameters we want to tune
+json_data = {
+  "name": "RandomForest_nestimators_minsampsplit",
+  "description": "Two-parameter tuning of random forest",
+  "covars": {
+    "n_estimators": {
+      "vtype": "int",
+      "guess": 100,
+      "min": 10,
+      "max": 500
+    },
+    "min_samples_split": {
+      "vtype": "cont",
+      "guess": 0.3,
+      "min": 0.0,
+      "max": 1.0
+    }
+  },
+  "model_type": "SingleTaskGP",
+  "acq_func": "ExpectedImprovement"
+}
+
+# post to API
+r = requests.post(create_url, headers=headersAuth, json=json_data)
+
+# get experiment UUID
+exp_uuid = r.json()["exp_uuid"]
+
+# ask and tell urls for this experiment
+askurl = "http://dev.autotune.localhost:8008/experiment/ask/" + exp_uuid
+tellurl = "http://dev.autotune.localhost:8008/experiment/tell/" + exp_uuid
+
+# loop to get best hyperparameters
+for iter in range(10):
+    
+    # get hyperparameters
+    r_ask = requests.get(askurl, headers=headerAuth)
+    payload = json.loads(r_ask.json()["covars_next_exp"])[0]
+    n_estimators = payload["n_estimators"]
+    min_samples_split = payload["min_samples_split"]
+    
+    # set up model and fit it on the data
+    rf = RandomForestRegressor(n_estimators=n_estimators, min_samples_split=min_samples_split)
+    rf.fit(X, y)
+    pred = rf.predict([[0,0,0,0]])
+
+    # communicate result back to API
+    covars_df = pd.DataFrame({"n_estimators": [n_estimators], "min_samples_split": [min_samples_split]})
+    response_df = pd.DataFrame({"Response": [pred[0]]})
+    json_tell_data = {"exp_uuid": exp_uuid, "covars_tell": covars_df.to_json(orient="records"), "response_tell": response_df.to_json(orient="records")}
+    r_tell = requests.post(tellurl, headers=headerAuth, json=json_tell_data)
+
+# best response
+best_response = r_tell.json()["best_response"]
+covars_best_reponse = r_tell.json()["covars_best_response"]
+```
 
 ## Creating a user and getting a token
 
