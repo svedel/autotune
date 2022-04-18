@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from app.api.routes import router as api_router
 from app.db import database, User
 from app.core.config import settings
-from app.core.security import get_password_hash
+from app.db.init_db import init_db
 
 
 tags_metadata = [
@@ -34,8 +34,10 @@ async def startup():
     if not database.is_connected:
         await database.connect()
 
-    await User.objects.get_or_create(email="test@test.com", hashed_password=get_password_hash("CHANGEME"))
-    await User.objects.get_or_create(email="me@somewhere.com", hashed_password=get_password_hash("CHANGEME"))
+    await init_db()
+
+    #await User.objects.get_or_create(email="test@test.com", hashed_password=get_password_hash("CHANGEME"))
+    #await User.objects.get_or_create(email="me@somewhere.com", hashed_password=get_password_hash("CHANGEME"))
 
 @app.on_event("shutdown")
 async def shutdown():
