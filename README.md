@@ -75,8 +75,8 @@ r = requests.post(create_url, headers=headersAuth, json=json_data)
 exp_uuid = r.json()["exp_uuid"]
 ```
 
-The `covars`-part of `json_data` defines the hyperparameters of the experiment, with one dictionary per variable. [See 
-further details below](#POST-action:-experiments/new-endpoint:-creating-a-new-experiment) of how to create experiments with more hyperparameters (and other data types).
+The `covars`-part of `json_data` defines the hyperparameters of the experiment, with one dictionary per variable. See 
+further details below under "POST action: `experiments/new` endpoint" of how to create experiments with more hyperparameters (and other data types).
 
 ### Step 2: getting suggestions for hyperparameters
 ```python
