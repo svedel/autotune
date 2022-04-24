@@ -218,14 +218,58 @@ covars_best_reponse = r_tell.json()["covars_best_response"]
 ```
 
 ## Creating a user and getting a token
+This part is only rudimentary at present. The solution is both scalable and robust, but it does not support a commercial 
+flow in the sense that anybody can sign up. Also, there are no checks implemented to ensure the same users are not created more than once.
 
+### Creating a user
+Create a user with email `something@test.com` and password `something`.
+
+```python
+import requests
+
+url = "http://dev.autotune.localhost:8008/user/signup"
+json_data = {"email": "something@test.com", "password": "something"}
+r = requests.post(url, json=json_data)
+
+# this will produce a response of the type
+# {'id': 4, 'uuid': '4c93e035-ec59-42fc-ae10-d147b77a9dea', 'email': 'something@test.com', 'time_created': '2022-04-18T07:33:31.303476', 'active': True}
+```
+
+### Retrieve token
+Continuing the example, here is how to retrieve the JWT token for the user we just created. This token is needed to 
+create and manipulate experiments. Beware that the token expires, in which case a new must be retrieved.
+```python
+import requests
+
+url = 'http://dev.autotune.localhost:8008/auth/token'
+data = {'username': 'something@test.com', 'password': 'something'}
+
+r = requests.post(url, data = data)
+```
+The token can be grabbed via `r.json()["access_token"]`.
 
 # Endpoints
 ## Dev API
 The dev API is orchestrated via `docker-compose.yml`. The API is available on `dev.autotune.localhost:8008` (the swagger 
 entry point on `dev.autotune.localhost:8008/docs`), the `traefik` dashboard is available on `dev.autotune.localhost:8081` 
 and the `pgadmin` tool for accessing the postgres database is available on `dev.autotune.localhost:5050` (user name and 
-password available through `.env`-file)
+password available through `.env`-file).
+
+Full list of available endpoints
+* User
+  * `/user/`: get all users 
+  * `/user/{user_id}`: get all user details via user UUID.
+  * `/user/signup`: create new user from `email` and `password`
+* Authentication and authorization
+  * `/auth/login`: login via username and password
+  * `/auth/me`: test endpoint to verify `username` and `password` (secured with username and password)
+  * `/auth/token`: generate JWT token
+  * `/auth/header-me`: test endpoint to verify JWT token (secured with token)
+* Experiment
+  * `/experiment/new`: create new experiment (secured with token)
+  * `/experiment/ask/{exp_uuid}`: get proposal for hyperparameters for experiment UUID (secured with token)
+  * `/experiment/all`: list all experiments (secured with token)
+  * `/experiment/tell/{exp_uuid}`: report used hyperparameters and performance for experiment UUID (secured with token)
 
 ## Example API calls
 
@@ -472,6 +516,8 @@ svedel@svedel-T430s:~/fastapi_postgres_docker_check$ curl -X GET http://fastapi.
 
 # Technical details
 
+**Note: No tests included at present**
+
 ## Tech stack
 * [`fastapi` API framework](https://fastapi.tiangolo.com/) with [`uvicorn` ASGI server](https://www.uvicorn.org/)
 for a natively async API framework
@@ -515,6 +561,19 @@ database, and the value for both are `fastapi` (these parameters are defined in 
 Finally, the tables can be accessed using the tree to the left under Servers > autotune.dev > fastapi > schemas > tables
 
 ![alt text](docs/figs/find_tables.png)
+
+## Database migrations
+[`Alembic`](https://alembic.sqlalchemy.org/en/latest/) has been enabled for database migrations. 
+
+Create and enable migrations using the normal Alembic workflow. Specifically, execute the alembic commands directly in the `web` Docker container where the backend code is held using (on the command line) 
+```commandline
+$ docker-compose exec web alembic upgrade head
+```
+For more details, see either [this blogpost from `testdriven.io`](https://testdriven.io/blog/fastapi-sqlmodel/) or this
+entry from the [`ormar` documentation](https://collerek.github.io/ormar/models/migrations/).
+
+**Note:** Inside `main.py` the code currently initializes the database and subsequently adds data via the `on_event("startup")`-action. Perhaps this needs to be revised for migrations to work properly. 
+
 
 # References
 * [Christopher GS: blog on `fastapi` app building](https://christophergs.com/tutorials/ultimate-fastapi-tutorial-pt-10-auth-jwt/)
